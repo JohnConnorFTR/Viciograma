@@ -14,6 +14,7 @@ const VG_CONFIG = {
     // Ejemplo: 'sitio-restringido.com',
   ],
   FB_NUM_POSTS: 10,
+  IMA_TEST_AD_TAG: 'https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_ad_samples&sz=640x480&cust_params=sample_ct%3Dlinear&ciu_szs=300x250&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=',
 };
 
 /* ================================================================
@@ -114,6 +115,7 @@ const refs = {
   embedContainer:   $('embed-player-container'),
   placeholder:      $('player-placeholder'),
   nativePlayer:     $('native-player'),
+  imaAdContainer:   $('ima-ad-container'),
   embedPlayer:      $('embed-player'),
   videoTitle:       $('video-title'),
   videoDesc:        $('video-description'),
@@ -127,6 +129,127 @@ const refs = {
   // Footer
   footerYear:        $('footer-year'),
 };
+
+let imaAdDisplayContainer = null;
+let imaAdsLoader = null;
+let imaAdsManager = null;
+let imaAdsRequested = false;
+let imaAdErrorHandled = false;
+
+function resumeContentAfterAd() {
+  if (refs.imaAdContainer) refs.imaAdContainer.style.display = 'none';
+  if (refs.nativePlayer.paused && refs.nativePlayer.currentSrc) {
+    const playPromise = refs.nativePlayer.play();
+    if (playPromise && typeof playPromise.catch === 'function') {
+      playPromise.catch((error) => {
+        console.error('No se pudo reanudar el video después del anuncio:', error);
+      });
+    }
+  }
+}
+
+function handleIMAAdError(error) {
+  if (imaAdErrorHandled) return;
+  imaAdErrorHandled = true;
+  console.error('Error del anuncio de prueba Google IMA:', error);
+  if (imaAdsManager) {
+    imaAdsManager.destroy();
+    imaAdsManager = null;
+  }
+  resumeContentAfterAd();
+}
+
+function onIMAAdsManagerLoaded(event) {
+  try {
+    imaAdsManager = event.getAdsManager(refs.nativePlayer);
+    imaAdsManager.addEventListener(
+      google.ima.AdErrorEvent.Type.AD_ERROR,
+      handleIMAAdError
+    );
+    imaAdsManager.addEventListener(
+      google.ima.AdEvent.Type.CONTENT_PAUSE_REQUESTED,
+      () => {
+        refs.nativePlayer.pause();
+        refs.imaAdContainer.style.display = 'block';
+      }
+    );
+    imaAdsManager.addEventListener(
+      google.ima.AdEvent.Type.CONTENT_RESUME_REQUESTED,
+      resumeContentAfterAd
+    );
+    imaAdsManager.addEventListener(
+      google.ima.AdEvent.Type.ALL_ADS_COMPLETED,
+      resumeContentAfterAd
+    );
+
+    const width = refs.nativePlayer.clientWidth || 640;
+    const height = refs.nativePlayer.clientHeight || 360;
+    imaAdsManager.init(width, height, google.ima.ViewMode.NORMAL);
+    imaAdsManager.start();
+  } catch (error) {
+    handleIMAAdError(error);
+  }
+}
+
+function requestIMAAd() {
+  if (imaAdsRequested) return;
+  imaAdsRequested = true;
+  refs.nativePlayer.pause();
+
+  if (!window.google || !window.google.ima) {
+    handleIMAAdError(new Error('El SDK de Google IMA no está disponible.'));
+    return;
+  }
+
+  try {
+    imaAdDisplayContainer = new google.ima.AdDisplayContainer(
+      refs.imaAdContainer,
+      refs.nativePlayer
+    );
+    imaAdDisplayContainer.initialize();
+
+    imaAdsLoader = new google.ima.AdsLoader(imaAdDisplayContainer);
+    imaAdsLoader.addEventListener(
+      google.ima.AdsManagerLoadedEvent.Type.ADS_MANAGER_LOADED,
+      onIMAAdsManagerLoaded,
+      false
+    );
+    imaAdsLoader.addEventListener(
+      google.ima.AdErrorEvent.Type.AD_ERROR,
+      handleIMAAdError,
+      false
+    );
+
+    const request = new google.ima.AdsRequest();
+    request.adTagUrl = VG_CONFIG.IMA_TEST_AD_TAG;
+    request.linearAdSlotWidth = refs.nativePlayer.clientWidth || 640;
+    request.linearAdSlotHeight = refs.nativePlayer.clientHeight || 360;
+    request.nonLinearAdSlotWidth = refs.nativePlayer.clientWidth || 640;
+    request.nonLinearAdSlotHeight = Math.max(
+      90,
+      Math.floor((refs.nativePlayer.clientHeight || 360) / 3)
+    );
+    imaAdsLoader.requestAds(request);
+  } catch (error) {
+    handleIMAAdError(error);
+  }
+}
+
+function initIMA() {
+  refs.nativePlayer.addEventListener('play', requestIMAAd);
+  refs.nativePlayer.addEventListener('ended', () => {
+    if (imaAdsLoader) imaAdsLoader.contentComplete();
+  });
+  window.addEventListener('resize', () => {
+    if (imaAdsManager && refs.nativePlayer.clientWidth) {
+      imaAdsManager.resize(
+        refs.nativePlayer.clientWidth,
+        refs.nativePlayer.clientHeight,
+        google.ima.ViewMode.NORMAL
+      );
+    }
+  });
+}
 
 /* ================================================================
    MOSTRAR / OCULTAR CONTENEDORES DEL PLAYER
@@ -405,6 +528,7 @@ function loadVideo({ videoUrl, title, description }) {
    ================================================================ */
 function init() {
   if (refs.footerYear) refs.footerYear.textContent = new Date().getFullYear();
+  initIMA();
 
   const params = getQueryParams();
   loadVideo(params);

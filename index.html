@@ -36,6 +36,8 @@
 
   <!-- HLS.js para streams m3u8 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js" defer></script>
+  <!-- Google IMA SDK para anuncios de video de prueba -->
+  <script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js" defer></script>
   <!-- Lógica principal -->
   <script src="script.js" defer></script>
 </head>
@@ -88,6 +90,7 @@
                  crossorigin="anonymous" preload="metadata">
             Tu navegador no soporta la reproducción de video HTML5.
           </video>
+          <div id="ima-ad-container" class="vg-ima-ad-container" aria-label="Anuncio de prueba"></div>
         </div>
         <!-- Player embed (YouTube / iframe) -->
         <div class="ratio ratio-16x9 vg-ratio d-none" id="embed-player-container">
