@@ -240,6 +240,58 @@ body {
   border-top: 1px solid var(--vg-border);
 }
 
+.vg-share-label {
+  color: var(--vg-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.vg-share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--vg-border);
+  border-radius: 8px;
+  background: #202024;
+  color: var(--vg-text);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.2s;
+}
+
+.vg-share-button:hover {
+  color: #fff;
+  border-color: var(--vg-orange);
+  background: #29292e;
+  transform: translateY(-1px);
+}
+
+.vg-share-button:focus-visible {
+  outline: 2px solid var(--vg-orange);
+  outline-offset: 2px;
+}
+
+.vg-share-button i {
+  font-size: 1rem;
+}
+
+.vg-share-whatsapp i { color: #25d366; }
+.vg-share-facebook i { color: #1877f2; }
+.vg-share-x i { color: #e8e8ec; }
+.vg-share-instagram i { color: #e1306c; }
+.vg-share-copy i { color: var(--vg-orange); }
+
+.vg-share-status {
+  min-height: 1.25em;
+  color: var(--vg-muted);
+}
+
 .vg-social-fallback {
   color: var(--vg-muted);
 }

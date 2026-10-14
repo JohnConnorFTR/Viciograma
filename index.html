@@ -102,7 +102,10 @@
         <div class="vg-player-placeholder d-flex flex-column align-items-center justify-content-center" id="player-placeholder">
           <i class="bi bi-play-circle vg-placeholder-icon"></i>
           <p class="mt-3 mb-1 fs-5 fw-semibold">Ningún video cargado</p>
-          <p class="text-muted small">Usá el parámetro <code>?v=URL_DEL_VIDEO</code> en la dirección.</p>
+          <p class="text-muted small">
+            Usá <code>?v=URL_DEL_VIDEO&amp;t=TITULO&amp;d=DESCRIPCION</code>.
+            El título y la descripción son opcionales; si los omitís, se infieren del enlace.
+          </p>
         </div>
       </div>
 
@@ -114,19 +117,25 @@
         </p>
         <div class="vg-meta" id="video-meta"></div>
 
-        <!-- ===== BOTONES SOCIALES FACEBOOK =====
-             Ocultos por defecto. El SDK los muestra cuando está listo.
-             Esto evita los errores de X-Frame-Options. -->
-        <div class="vg-social-bar mt-3" id="fb-social-bar" style="display:none;">
-          <!-- Los botones se inyectan dinámicamente desde script.js
-               una vez que el SDK de Facebook está inicializado.     -->
+        <div class="vg-social-bar mt-3" id="share-buttons" aria-label="Compartir este video">
+          <span class="vg-share-label">Compartir:</span>
+          <a class="vg-share-button vg-share-whatsapp" id="share-whatsapp" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-whatsapp" aria-hidden="true"></i><span>WhatsApp</span>
+          </a>
+          <a class="vg-share-button vg-share-facebook" id="share-facebook" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-facebook" aria-hidden="true"></i><span>Facebook</span>
+          </a>
+          <a class="vg-share-button vg-share-x" id="share-x" target="_blank" rel="noopener noreferrer">
+            <i class="bi bi-twitter-x" aria-hidden="true"></i><span>X / Twitter</span>
+          </a>
+          <button class="vg-share-button vg-share-instagram" id="share-instagram" type="button">
+            <i class="bi bi-instagram" aria-hidden="true"></i><span>Instagram Stories</span>
+          </button>
+          <button class="vg-share-button vg-share-copy" id="share-copy" type="button">
+            <i class="bi bi-link-45deg" aria-hidden="true"></i><span>Copiar enlace</span>
+          </button>
         </div>
-        <!-- Mensaje "cargando" mientras el SDK no está listo -->
-        <div class="vg-social-loading mt-3" id="fb-social-loading">
-          <span class="text-muted small">
-            <i class="bi bi-clock me-1"></i>Cargando botones de Facebook…
-          </span>
-        </div>
+        <p class="vg-share-status small text-muted mt-2 mb-0" id="share-status" role="status" aria-live="polite"></p>
       </div>
 
       <!-- ===== AD BANNER SUPERIOR ===== -->
@@ -194,7 +203,7 @@
       FB.init({
         appId:   (window.VG && window.VG.FB_APP_ID) ? window.VG.FB_APP_ID : undefined,
         xfbml:   false,   // ← IMPORTANTE: no parsear automáticamente
-        version: 'v19.0',
+        version: 'v24.0',
       });
       document.dispatchEvent(new Event('fb-sdk-ready'));
     };
