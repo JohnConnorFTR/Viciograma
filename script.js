@@ -95,7 +95,7 @@ function getUrlTitle(rawUrl, includePathSlug = false) {
 /* ================================================================
    DETECCIÓN DE TIPO DE FUENTE
    ================================================================ */
-function detectSourceType(url, fileType = '') {
+function detectSourceType(url) {
   try {
     const parsed   = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
@@ -105,7 +105,7 @@ function detectSourceType(url, fileType = '') {
       .flatMap((part) => part.split(/[/?#&=]/))
       .reverse()
       .find((part) => MEDIA_FILE_EXTENSION.test(part))
-      ?.match(MEDIA_FILE_EXTENSION)?.[1]?.toLowerCase() || fileType;
+      ?.match(MEDIA_FILE_EXTENSION)?.[1]?.toLowerCase();
 
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
       return { type: SOURCE_TYPE.YOUTUBE, url };
@@ -153,8 +153,6 @@ function getQueryParams() {
     title:       (sp.get('t') || sp.get('title') || '').trim(),
     description: (sp.get('d') || sp.get('desc') || sp.get('description') || '').trim(),
     subtitleUrl: (sp.get('s') || sp.get('subtitles') || '').trim(),
-    mediaKind:   (sp.get('m') || '').trim().toLowerCase(),
-    fileType:    (sp.get('f') || '').trim().toLowerCase(),
   };
 }
 
@@ -355,7 +353,7 @@ function buildPlayerUrl(sourceUrl, description, subtitleUrl = '') {
   return playerUrl.href;
 }
 
-function isDirectMediaUrl(rawUrl, mediaKind = '', fileType = '') {
+function isDirectMediaUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
     const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
@@ -378,8 +376,6 @@ function isDirectMediaUrl(rawUrl, mediaKind = '', fileType = '') {
 
     return MEDIA_FILE_EXTENSION.test(lastPathSegment)
       || hasFileNameQuery
-      || (['audio', 'video', 'stream'].includes(mediaKind)
-        && (!fileType || MEDIA_FILE_EXTENSION.test(`file.${fileType}`)))
       || parsed.hostname === 'youtu.be'
       || parsed.hostname === 'youtube.com'
       || parsed.hostname.endsWith('.youtube.com');
@@ -911,7 +907,7 @@ function setExternalSubtitle(videoEl, subtitleUrl) {
 /* ================================================================
    FUNCIÓN PRINCIPAL: CARGAR VIDEO
    ================================================================ */
-function loadVideo({ videoUrl, title, description, subtitleUrl, mediaKind, fileType }) {
+function loadVideo({ videoUrl, title, description, subtitleUrl }) {
   const canonicalUrl = window.location.href;
   videoTitleReady = Promise.resolve(title || 'Viciograma – Video Cloud Player');
 
@@ -938,14 +934,14 @@ function loadVideo({ videoUrl, title, description, subtitleUrl, mediaKind, fileT
     return;
   }
 
-  const source = detectSourceType(videoUrl, fileType);
+  const source = detectSourceType(videoUrl);
   const inferred = inferVideoMetadata(videoUrl, source.type);
   const pageTitle = title || inferred.title;
   videoTitleReady = Promise.resolve(pageTitle);
   const pageDescription = description || inferred.description;
   updateShareButtons(canonicalUrl);
 
-  if (!isDirectMediaUrl(videoUrl, mediaKind, fileType)) {
+  if (!isDirectMediaUrl(videoUrl)) {
     videoTitleReady = showOriginLanding(videoUrl, title, description);
     return;
   }

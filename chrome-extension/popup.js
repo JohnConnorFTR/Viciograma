@@ -207,30 +207,34 @@ async function scanActiveTab() {
       const mediaExtension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
       const found = new Map();
       const getExtension = (value) => {
-        try {
-          const decoded = decodeURIComponent(value.replace(/\+/g, ' '));
-          return decoded.split(/[/?#&=]/).reverse()
-            .find((part) => mediaExtension.test(part))
-            ?.match(mediaExtension)?.[1]?.toLowerCase() || '';
-        } catch {
-          return value.split(/[/?#&=]/).reverse()
-            .find((part) => mediaExtension.test(part))
-            ?.match(mediaExtension)?.[1]?.toLowerCase() || '';
+        if (typeof value !== 'string' || !value) return '';
+        let decoded = value;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          try {
+            const next = decodeURIComponent(decoded.replace(/\+/g, ' '));
+            if (next === decoded) break;
+            decoded = next;
+          } catch {
+            break;
+          }
         }
+        try {
+          const parsed = new URL(decoded, document.baseURI);
+          const pathExtension = parsed.pathname.split('/').filter(Boolean).pop()
+            ?.match(mediaExtension)?.[1]?.toLowerCase();
+          if (pathExtension) return pathExtension;
+          for (const key of ['filename', 'file', 'name']) {
+            const queryExtension = parsed.searchParams.getAll(key)
+              .map((part) => part.split('/').pop()?.match(mediaExtension)?.[1]?.toLowerCase())
+              .find(Boolean);
+            if (queryExtension) return queryExtension;
+          }
+        } catch {
+          return '';
+        }
+        return '';
       };
-      const getMimeExtension = (mime) => ({
-        'video/mp4': 'mp4',
-        'video/webm': 'webm',
-        'video/ogg': 'ogv',
-        'application/vnd.apple.mpegurl': 'm3u8',
-        'application/x-mpegurl': 'm3u8',
-        'audio/mpeg': 'mp3',
-        'audio/mp4': 'm4a',
-        'audio/ogg': 'ogg',
-        'audio/wav': 'wav',
-      })[mime?.split(';')[0].trim().toLowerCase()] || '';
-      const getLabelExtension = (label) => getExtension(label || '');
-      const add = (rawUrl, label = '', mediaHint = '', mime = '') => {
+      const add = (rawUrl, label = '') => {
         if (typeof rawUrl !== 'string' || !rawUrl || /^(blob:|data:|javascript:)/i.test(rawUrl)) return;
         let url;
         try {
@@ -239,64 +243,30 @@ async function scanActiveTab() {
           return;
         }
         if (!['http:', 'https:'].includes(url.protocol)) return;
-
-        const extension = getExtension(`${url.pathname}${url.search}`)
-          || getLabelExtension(label)
-          || getMimeExtension(mime);
-        if (!extension && !mediaHint) return;
+        const extension = getExtension(url.href);
+        if (!extension) return;
 
         const kind = /^(mp3|m4a|aac|wav|flac|ogg|opus)$/.test(extension)
           ? 'audio'
           : extension === 'm3u8'
             ? 'stream'
-            : mediaHint || 'video';
+            : 'video';
         if (!found.has(url.href)) found.set(url.href, { url: url.href, label, kind, extension });
       };
 
       document.querySelectorAll('video, audio').forEach((media) => {
-        const mediaHint = media.tagName.toLowerCase();
         const label = media.getAttribute('title') || media.getAttribute('aria-label') || '';
-        add(media.currentSrc || media.src, label, mediaHint, media.getAttribute('type') || '');
+        add(media.currentSrc || media.src, label);
         media.querySelectorAll('source[src]').forEach((source) =>
-          add(source.src, source.getAttribute('title') || label, mediaHint, source.getAttribute('type') || '')
+          add(source.src, source.getAttribute('title') || label)
         );
       });
       document.querySelectorAll('a[href]').forEach((link) => {
         const label = link.getAttribute('download') || link.textContent.trim();
-        if (getExtension(link.href) || getLabelExtension(label) || link.hasAttribute('download')) {
-          add(link.href, label);
-        }
+        add(link.href, label);
       });
-      const isGoogleDrivePage = /(^|\.)drive\.google\.com$/i.test(location.hostname)
-        || /(^|\.)drive\.usercontent\.google\.com$/i.test(location.hostname);
-      const driveFormCandidates = [];
-      if (isGoogleDrivePage) {
-        const fileLink = [...document.querySelectorAll('a[href]')]
-          .find((link) => getLabelExtension(link.textContent.trim()));
-        const fileLabel = fileLink?.textContent.trim() || document.title;
-        if (getLabelExtension(fileLabel)) {
-          document.querySelectorAll('form').forEach((form) => {
-            if (form.method.toLowerCase() !== 'get') return;
-            const action = new URL(form.action || location.href, location.href);
-            if (!/(^|\.)drive\.google\.com$/i.test(action.hostname)
-                && !/(^|\.)drive\.usercontent\.google\.com$/i.test(action.hostname)) return;
-
-            const params = new URLSearchParams(action.search);
-            for (const field of form.querySelectorAll('input[name], button[name]')) {
-              if (field.disabled || !field.name || (field.type === 'submit' && !field.value)) continue;
-              params.set(field.name, field.value);
-            }
-            action.search = params.toString();
-            add(action.href, fileLabel);
-            if (found.has(action.href)) driveFormCandidates.push(action.href);
-          });
-        }
-      }
       for (const resource of performance.getEntriesByType('resource')) {
-        const mediaHint = resource.initiatorType === 'video' || resource.initiatorType === 'audio'
-          ? resource.initiatorType
-          : '';
-        add(resource.name, '', mediaHint);
+        add(resource.name);
       }
 
       const description = document.querySelector('meta[name="description"]')?.content
@@ -305,10 +275,7 @@ async function scanActiveTab() {
       return {
         pageTitle: document.title.trim(),
         pageDescription: description.trim(),
-        candidates: [
-          ...driveFormCandidates.map((url) => found.get(url)).filter(Boolean),
-          ...[...found.entries()].filter(([url]) => !driveFormCandidates.includes(url)).map(([, candidate]) => candidate),
-        ].slice(0, 30),
+        candidates: [...found.values()].slice(0, 30),
       };
     },
   });
@@ -325,8 +292,6 @@ refs.openPlayer.addEventListener('click', async () => {
 
   const playerUrl = new URL(PLAYER_URL);
   playerUrl.searchParams.set('v', activeCandidate.url);
-  playerUrl.searchParams.set('m', activeCandidate.kind);
-  if (activeCandidate.extension) playerUrl.searchParams.set('f', activeCandidate.extension);
   const title = getCandidateTitle(activeCandidate);
   if (title) playerUrl.searchParams.set('t', title);
 

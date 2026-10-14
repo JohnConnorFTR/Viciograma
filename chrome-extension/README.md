@@ -1,6 +1,6 @@
 # Extensión Viciograma para Chrome
 
-La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. También considera URLs sin extensión cuando están asociadas a un elemento multimedia o cuando Drive expone el nombre del archivo y un formulario de descarga. Permite previsualizar el primer resultado (sin reproducción automática) y abrirlo en Viciograma. El título se toma del nombre del archivo multimedia en la URL o de su etiqueta visible, sin la extensión. El popup no muestra una lista de enlaces ni permite editar el título o la descripción. La vista previa tiene un máximo de cinco minutos efectivos; pausar no consume el límite.
+La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. Solo acepta URLs cuya ruta final o parámetro de nombre de archivo identifica un formato multimedia; no usa nombres visibles ni tipos MIME para convertir páginas de alojamiento en medios. Permite previsualizar el primer resultado (sin reproducción automática) y abrirlo en Viciograma. El título se toma del nombre del archivo multimedia en la URL, sin la extensión. El popup no muestra una lista de enlaces ni permite editar el título o la descripción. La vista previa tiene un máximo de cinco minutos efectivos; pausar no consume el límite.
 
 ## Cargar para probar
 
@@ -13,7 +13,7 @@ No hace falta configurar permisos de sitios por adelantado. `activeTab` y `scrip
 
 ## Formatos y límites
 
-Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `wav`, `ogg`, `mp4`, `webm`, `m3u8`, entre otros). Los enlaces `blob:` y `data:` se excluyen. En Google Drive, la extensión solo puede usar URLs y datos de confirmación que la página ya expuso; no elude permisos, pantallas de confirmación, autenticación ni límites del servicio. Un enlace protegido por autenticación, token temporal, CORS, DRM o restricciones del alojamiento puede no funcionar en la vista previa. La extensión no descarga ni extrae archivos del servidor; solo lee URLs que la página ya expone al navegador.
+Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `wav`, `ogg`, `mp4`, `webm`, `m3u8`, entre otros). Los enlaces `blob:` y `data:` se excluyen. Un enlace protegido por autenticación, token temporal, CORS, DRM o restricciones del alojamiento puede no funcionar en la vista previa. La extensión no descarga ni extrae archivos del servidor; solo lee URLs que la página ya expone al navegador.
 
 Al abrir en Viciograma, el popup genera el enlace del reproductor con el título derivado del nombre de archivo en la URL. Esto permite que el título y la clave de comentarios coincidan entre la página de alojamiento y el enlace directo del medio.
 
