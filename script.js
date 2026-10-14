@@ -7,12 +7,11 @@
 
 /* ================================================================
    CONFIGURACIÓN INTERNA
-   Los valores de FB y AdSense vienen de window.VG (definido en index.html)
    ================================================================ */
 const VG_CONFIG = {
-  // Dominios bloqueados (minúsculas, sin protocolo ni barras)
   DOMAIN_BLACKLIST: [
-    // 'ejemplo-bloqueado.com',
+    // Agregá dominios bloqueados aquí (minúsculas, sin protocolo)
+    // Ejemplo: 'sitio-restringido.com',
   ],
   FB_NUM_POSTS: 10,
 };
@@ -49,7 +48,6 @@ function detectSourceType(url) {
     if (/\.(mp4|mov|ogg|ogv|3gp)(\?.*)?$/.test(path)) {
       return { type: SOURCE_TYPE.NATIVE_MP4, url };
     }
-    // Fallback: intenta como MP4
     return { type: SOURCE_TYPE.NATIVE_MP4, url };
   } catch {
     return { type: SOURCE_TYPE.UNKNOWN, url };
@@ -72,9 +70,9 @@ function isBlacklisted(rawUrl) {
 
 /* ================================================================
    PARSEO DE PARÁMETROS URL
-   ?v=URL           → URL del video
-   ?t=Titulo        → Título (alias: title)
-   ?d=Descripcion   → Descripción (alias: desc)
+   ?v=URL         → URL del video
+   ?t=Titulo      → Título
+   ?d=Descripcion → Descripción
    ================================================================ */
 function getQueryParams() {
   const sp = new URLSearchParams(window.location.search);
@@ -92,16 +90,14 @@ function toYouTubeEmbed(url) {
   try {
     const parsed  = new URL(url);
     let   videoId = '';
-
     if (parsed.hostname.includes('youtu.be')) {
       videoId = parsed.pathname.slice(1);
     } else {
       videoId = parsed.searchParams.get('v') || '';
     }
     if (!videoId) return null;
-
-    const t       = parsed.searchParams.get('t') || '';
-    const tParam  = t ? `&start=${t}` : '';
+    const t      = parsed.searchParams.get('t') || '';
+    const tParam = t ? `&start=${t}` : '';
     return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1${tParam}`;
   } catch {
     return null;
@@ -111,27 +107,25 @@ function toYouTubeEmbed(url) {
 /* ================================================================
    DOM REFS
    ================================================================ */
-const $  = (id) => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 
 const refs = {
-  nativeContainer: $('native-player-container'),
-  embedContainer:  $('embed-player-container'),
-  placeholder:     $('player-placeholder'),
-  nativePlayer:    $('native-player'),
-  embedPlayer:     $('embed-player'),
-  videoTitle:      $('video-title'),
-  videoDesc:       $('video-description'),
-  videoMeta:       $('video-meta'),
-  // Facebook social
-  fbLike:          $('fb-like-btn'),
-  fbShare:         $('fb-share-btn'),
-  fbSave:          $('fb-save-btn'),
-  fbFallback:      $('fb-fallback'),
-  // Facebook comments
-  fbComments:      $('fb-comments'),
-  fbPending:       $('fb-pending'),
-  // Misc
-  footerYear:      $('footer-year'),
+  nativeContainer:  $('native-player-container'),
+  embedContainer:   $('embed-player-container'),
+  placeholder:      $('player-placeholder'),
+  nativePlayer:     $('native-player'),
+  embedPlayer:      $('embed-player'),
+  videoTitle:       $('video-title'),
+  videoDesc:        $('video-description'),
+  videoMeta:        $('video-meta'),
+  // Social
+  fbSocialBar:      $('fb-social-bar'),
+  fbSocialLoading:  $('fb-social-loading'),
+  // Comments
+  fbCommentsWrapper: $('fb-comments-wrapper'),
+  fbPending:         $('fb-pending'),
+  // Footer
+  footerYear:        $('footer-year'),
 };
 
 /* ================================================================
@@ -156,132 +150,154 @@ function showPlaceholder() {
   refs.placeholder.classList.add('d-flex');
   refs.nativeContainer.classList.add('d-none');
   refs.embedContainer.classList.add('d-none');
+  // Limpiar src del embed para no dejar iframes colgados
+  if (refs.embedPlayer) refs.embedPlayer.src = 'about:blank';
+  if (refs.nativePlayer) refs.nativePlayer.removeAttribute('src');
 }
 
-/* ================================================================
-   MOSTRAR ERROR EN EL PLAYER
-   ================================================================ */
 function showError(message) {
   showPlaceholder();
-  refs.placeholder.innerHTML = `
-    <div class="vg-error-msg text-center w-100 mx-3">
-      <i class="bi bi-exclamation-octagon-fill d-block mb-2 fs-2"></i>
-      <strong>No se puede reproducir este video</strong>
-      <p class="mt-2 mb-0 small">${message}</p>
-    </div>`;
+  if (refs.placeholder) {
+    refs.placeholder.innerHTML = `
+      <div class="vg-error-msg text-center w-100 mx-3">
+        <i class="bi bi-exclamation-octagon-fill d-block mb-2 fs-2 text-danger"></i>
+        <strong>No se puede reproducir este video</strong>
+        <p class="mt-2 mb-0 small text-muted">${message}</p>
+      </div>`;
+  }
 }
 
 /* ================================================================
    INFO BOX
    ================================================================ */
 function setInfoBox(title, desc, meta = []) {
-  refs.videoTitle.textContent = title || 'Sin título';
+  if (refs.videoTitle) refs.videoTitle.textContent = title || 'Sin título';
 
-  if (desc) {
-    refs.videoDesc.innerHTML = `<span>${desc}</span>`;
-  } else {
-    refs.videoDesc.innerHTML =
-      `Reproduciendo contenido remoto. Viciograma actúa como <strong>reproductor neutro</strong>.`;
+  if (refs.videoDesc) {
+    refs.videoDesc.innerHTML = desc
+      ? `<span>${desc}</span>`
+      : `Reproduciendo contenido remoto. Viciograma actúa como <strong>reproductor neutro</strong>.`;
   }
 
-  refs.videoMeta.innerHTML = meta
-    .map(({ icon, text }) =>
-      `<span class="vg-meta-badge"><i class="bi ${icon}"></i>${text}</span>`
-    ).join('');
+  if (refs.videoMeta) {
+    refs.videoMeta.innerHTML = meta
+      .map(({ icon, text }) =>
+        `<span class="vg-meta-badge"><i class="bi ${icon}"></i>${text}</span>`
+      ).join('');
+  }
 }
 
 /* ================================================================
-   FACEBOOK — BOTONES SOCIALES (Like, Share, Save)
-   Actualiza los data-href con la URL canónica de la página actual
-   y re-parsea el XFBML.
+   FACEBOOK — INYECTAR BOTONES SOCIALES
+   Se llama solo después de que el SDK está inicializado.
+   Esto evita iframes prematuros y errores de X-Frame-Options.
    ================================================================ */
-function updateFBSocialButtons(pageUrl) {
-  if (!refs.fbLike && !refs.fbShare) return;
+function injectFBSocialButtons(pageUrl) {
+  if (!refs.fbSocialBar) return;
 
-  // Actualizar atributos href en los tres botones
-  if (refs.fbLike)  refs.fbLike.setAttribute('data-href', pageUrl);
-  if (refs.fbShare) refs.fbShare.setAttribute('data-href', pageUrl);
-  if (refs.fbSave)  refs.fbSave.setAttribute('data-uri', pageUrl);
+  refs.fbSocialBar.innerHTML = `
+    <!-- Me gusta -->
+    <div class="fb-like"
+         data-href="${pageUrl}"
+         data-layout="button_count"
+         data-action="like"
+         data-size="large"
+         data-colorscheme="dark"
+         data-show-faces="false"
+         data-share="false">
+    </div>
+    <!-- Compartir -->
+    <div class="fb-share-button"
+         data-href="${pageUrl}"
+         data-layout="button_count"
+         data-size="large">
+    </div>
+    <!-- Guardar -->
+    <div class="fb-save"
+         data-uri="${pageUrl}"
+         data-size="large">
+    </div>`;
 
-  if (window.location.protocol !== 'https:') {
-    if (refs.fbFallback) {
-      refs.fbFallback.textContent = 'Los botones sociales requieren publicar el sitio en una URL HTTPS.';
-    }
-    return;
-  }
+  refs.fbSocialBar.style.display = 'flex';
+  if (refs.fbSocialLoading) refs.fbSocialLoading.style.display = 'none';
 
-  // Ocultar fallback si FB SDK ya está
+  // Parsear solo esta sección
   if (window.FB) {
-    try {
-      window.FB.XFBML.parse($('fb-social-bar'));
-      if (refs.fbFallback) refs.fbFallback.style.display = 'none';
-    } catch (error) {
-      if (refs.fbFallback) {
-        refs.fbFallback.textContent = 'No se pudieron cargar los botones de Facebook.';
-      }
-      console.error('Error al procesar los botones sociales de Facebook:', error);
-    }
+    try { window.FB.XFBML.parse(refs.fbSocialBar); } catch (_) {}
   }
 }
 
-function setFBCommentsStatus(message) {
-  if (!refs.fbPending) return;
-  const status = refs.fbPending.querySelector('#fb-pending-message');
-  if (status) status.textContent = message;
-  refs.fbPending.style.display = 'flex';
-}
-
 /* ================================================================
-   FACEBOOK — COMENTARIOS
+   FACEBOOK — INYECTAR WIDGET DE COMENTARIOS
+   Se llama solo después de que el SDK está inicializado.
    ================================================================ */
-function updateFBComments(pageUrl) {
-  if (!refs.fbComments) return;
-
-  refs.fbComments.setAttribute('data-href', pageUrl);
-  refs.fbComments.setAttribute('data-numposts', VG_CONFIG.FB_NUM_POSTS);
+function injectFBComments(pageUrl) {
+  if (!refs.fbCommentsWrapper) return;
 
   const hasAppId = window.VG && window.VG.FB_APP_ID;
 
-  if (window.location.protocol !== 'https:') {
-    refs.fbComments.style.display = 'none';
-    setFBCommentsStatus('Para ver los comentarios, publicá el sitio en una dirección HTTPS. No funciona al abrir index.html desde el disco (file://).');
-    return;
-  }
-
   if (!hasAppId) {
-    refs.fbComments.style.display = 'none';
-    setFBCommentsStatus('Falta configurar el App ID de Facebook en index.html.');
+    // Sin App ID: mostrar aviso permanente
+    if (refs.fbPending) {
+      refs.fbPending.innerHTML = `
+        <i class="bi bi-facebook fs-4"></i>
+        <div>
+          <strong>Comentarios de Facebook</strong>
+          <p class="mb-0 text-muted small">
+            Para activar los comentarios, completá el campo
+            <code>FB_APP_ID</code> en la configuración de <code>index.html</code>.
+          </p>
+        </div>`;
+    }
     return;
   }
 
-  refs.fbComments.style.display = '';
-  if (!window.FB) {
-    setFBCommentsStatus('Conectando con Facebook…');
-    return;
-  }
+  // Con App ID: inyectar el widget real
+  refs.fbCommentsWrapper.innerHTML = `
+    <div class="fb-comments"
+         data-href="${pageUrl}"
+         data-width="100%"
+         data-numposts="${VG_CONFIG.FB_NUM_POSTS}"
+         data-colorscheme="dark"
+         data-lazy="true">
+    </div>`;
 
-  try {
-    setFBCommentsStatus('Cargando comentarios de Facebook…');
-    window.FB.XFBML.parse($('comments-section'), () => {
-      const iframe = $('comments-section').querySelector('.vg-fb-wrapper iframe');
-      if (iframe) {
-        refs.fbPending.style.display = 'none';
-      } else {
-        setFBCommentsStatus('Facebook no mostró el widget. Verificá el dominio HTTPS en la configuración de la app.');
-      }
-    });
-  } catch (error) {
-    setFBCommentsStatus('No se pudieron cargar los comentarios de Facebook.');
-    console.error('Error al procesar los comentarios de Facebook:', error);
+  if (window.FB) {
+    try { window.FB.XFBML.parse(refs.fbCommentsWrapper); } catch (_) {}
   }
 }
 
 /* ================================================================
-   FACEBOOK — ACTUALIZAR TODO (social + comentarios)
+   FACEBOOK — ACTUALIZAR URLS (cuando cambia el video)
    ================================================================ */
-function updateAllFB(pageUrl) {
-  updateFBSocialButtons(pageUrl);
-  updateFBComments(pageUrl);
+function updateFBWidgets(pageUrl) {
+  // Solo si el SDK ya cargó
+  if (!window.FB) return;
+  injectFBSocialButtons(pageUrl);
+  injectFBComments(pageUrl);
+}
+
+/* ================================================================
+   FACEBOOK — ESTADO DE ERROR (SDK no disponible / HTTP)
+   ================================================================ */
+function handleFBError() {
+  if (refs.fbSocialLoading) {
+    refs.fbSocialLoading.innerHTML = `
+      <span class="text-muted small">
+        <i class="bi bi-info-circle me-1"></i>
+        Los botones de Facebook requieren HTTPS.
+      </span>`;
+  }
+  if (refs.fbPending) {
+    refs.fbPending.innerHTML = `
+      <i class="bi bi-facebook fs-4"></i>
+      <div>
+        <strong>Comentarios de Facebook</strong>
+        <p class="mb-0 text-muted small">
+          Los comentarios de Facebook requieren que el sitio se sirva por HTTPS.
+        </p>
+      </div>`;
+  }
 }
 
 /* ================================================================
@@ -300,8 +316,7 @@ function loadHLS(url, videoEl) {
       if (data.fatal) showError('Error al cargar el stream HLS. Verificá que la URL sea válida y accesible.');
     });
   } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari nativo
-    videoEl.src = url;
+    videoEl.src = url; // Safari nativo
   } else {
     showError('Tu navegador no soporta streams HLS (m3u8).');
   }
@@ -319,20 +334,17 @@ function loadVideo({ videoUrl, title, description }) {
       'Viciograma – Video Cloud Player',
       'Ingresá un enlace de video mediante el parámetro <code>?v=</code> en la URL para comenzar a reproducir.'
     );
-    updateAllFB(canonicalUrl);
+    updateFBWidgets(canonicalUrl);
     return;
   }
 
-  // Blacklist check
   if (isBlacklisted(videoUrl)) {
     showError('Este dominio está restringido por política del reproductor.');
     return;
   }
 
   const source = detectSourceType(videoUrl);
-
-  // Actualizar todos los widgets FB con la URL canónica (incluye ?v=...)
-  updateAllFB(canonicalUrl);
+  updateFBWidgets(canonicalUrl);
 
   switch (source.type) {
 
@@ -363,7 +375,7 @@ function loadVideo({ videoUrl, title, description }) {
       refs.nativePlayer.load();
       showNativePlayer();
       refs.nativePlayer.onerror = () =>
-        showError('No se pudo cargar el video WebM. Verificá la URL y que el servidor permita CORS.');
+        showError('No se pudo cargar el video WebM. Verificá que la URL sea válida y que el servidor permita CORS.');
       setInfoBox(title || 'Video', description, [
         { icon: 'bi-file-play-fill',   text: 'WebM' },
         { icon: 'bi-cloud-arrow-down', text: 'Remoto' },
@@ -385,51 +397,45 @@ function loadVideo({ videoUrl, title, description }) {
     }
   }
 
-  // Actualizar <title> de la pestaña
   document.title = (title ? `${title} — ` : '') + 'Viciograma';
 }
 
 /* ================================================================
    GOOGLE ADSENSE — Activación dinámica
-   Si VG.ADS_CLIENT está configurado, inyecta el script y activa los slots.
-   (Alternativa a descomentar manualmente el bloque en el HTML)
    ================================================================ */
 function initAdsense() {
   const client = window.VG && window.VG.ADS_CLIENT;
-  if (!client || client === 'ca-pub-XXXXXXXXXXXXXXXX') return; // no configurado aún
+  if (!client || client === 'ca-pub-XXXXXXXXXXXXXXXX') return;
 
-  // Inyectar script de AdSense si no está ya
   if (!document.querySelector('script[src*="adsbygoogle"]')) {
-    const s  = document.createElement('script');
-    s.async  = true;
-    s.src    = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`;
+    const s       = document.createElement('script');
+    s.async       = true;
+    s.src         = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`;
     s.crossOrigin = 'anonymous';
     document.head.appendChild(s);
   }
 
-  // Activar cada bloque <ins class="adsbygoogle"> y ocultar su placeholder
   document.querySelectorAll('.vg-ad-banner').forEach((banner) => {
     const placeholder = banner.querySelector('.vg-ad-placeholder');
-    const slot        = banner.id === 'ad-top'
+    const slot = banner.id === 'ad-top'
       ? (window.VG.ADS_SLOT_TOP    || '')
       : (window.VG.ADS_SLOT_BOTTOM || '');
 
     if (!slot || slot === '1111111111' || slot === '2222222222') return;
+    if (banner.querySelector('ins')) return; // ya activado
 
-    // Crear <ins> si no existe ya
-    if (!banner.querySelector('ins')) {
-      const ins = document.createElement('ins');
-      ins.className = 'adsbygoogle';
-      ins.style.display = 'block';
-      ins.dataset.adClient           = client;
-      ins.dataset.adSlot             = slot;
-      ins.dataset.adFormat           = 'auto';
-      ins.dataset.fullWidthResponsive = 'true';
-      if (placeholder) placeholder.replaceWith(ins);
-      else banner.appendChild(ins);
+    const ins = document.createElement('ins');
+    ins.className = 'adsbygoogle';
+    ins.style.display = 'block';
+    ins.dataset.adClient            = client;
+    ins.dataset.adSlot              = slot;
+    ins.dataset.adFormat            = 'auto';
+    ins.dataset.fullWidthResponsive = 'true';
 
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    }
+    if (placeholder) placeholder.replaceWith(ins);
+    else banner.appendChild(ins);
+
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
   });
 }
 
@@ -437,28 +443,20 @@ function initAdsense() {
    INICIALIZACIÓN
    ================================================================ */
 function init() {
-  // Año en el footer
   if (refs.footerYear) refs.footerYear.textContent = new Date().getFullYear();
 
-  // Registrar primero los eventos para no perder la señal si el SDK cargó rápido.
-  document.addEventListener('fb-sdk-ready', () => {
-    updateAllFB(window.location.href);
-    if (refs.fbFallback) refs.fbFallback.style.display = 'none';
-  });
-
-  document.addEventListener('fb-sdk-error', () => {
-    if (refs.fbFallback) {
-      refs.fbFallback.textContent = 'No se pudo conectar con Facebook. Revisá tu conexión o bloqueadores de contenido.';
-    }
-    setFBCommentsStatus('No se pudo conectar con Facebook. Revisá tu conexión o bloqueadores de contenido.');
-  });
-
-  // Cargar video según params de URL
   const params = getQueryParams();
   loadVideo(params);
-
-  // Intentar activar AdSense si está configurado
   initAdsense();
+
+  // SDK de Facebook listo → inyectar botones y comentarios
+  document.addEventListener('fb-sdk-ready', () => {
+    injectFBSocialButtons(window.location.href);
+    injectFBComments(window.location.href);
+  });
+
+  // Error del SDK (HTTP, bloqueado, etc.)
+  document.addEventListener('fb-sdk-error', handleFBError);
 }
 
 document.addEventListener('DOMContentLoaded', init);
