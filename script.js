@@ -109,6 +109,56 @@ function inferVideoMetadata(videoUrl, sourceType) {
   }
 }
 
+async function readEmbeddedVideoTitle(videoUrl) {
+  const mediaInfoModule = await import(
+    'https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.8/dist/esm/index.js'
+  );
+  const mediaInfo = await mediaInfoModule.default({ chunkSize: 256 * 1024 });
+
+  try {
+    const headResponse = await fetch(videoUrl, { method: 'HEAD' });
+    const fileSize = Number(headResponse.headers.get('content-length'));
+    if (!headResponse.ok || !Number.isSafeInteger(fileSize) || fileSize <= 0) {
+      throw new Error('El servidor no informó el tamaño del archivo.');
+    }
+
+    let bytesRead = 0;
+    const result = await mediaInfo.analyzeData(fileSize, async (size, offset) => {
+      const response = await fetch(videoUrl, {
+        headers: { Range: `bytes=${offset}-${offset + size - 1}` },
+      });
+      if (response.status !== 206) {
+        throw new Error('El servidor no admite la lectura parcial del archivo.');
+      }
+
+      const chunk = new Uint8Array(await response.arrayBuffer());
+      bytesRead += chunk.byteLength;
+      if (bytesRead > 8 * 1024 * 1024) {
+        throw new Error('Se superó el límite de lectura de metadatos.');
+      }
+      return chunk;
+    });
+
+    const generalTrack = result.media.track.find((track) => track['@type'] === 'General');
+    return generalTrack?.Title?.trim() || '';
+  } finally {
+    mediaInfo.close();
+  }
+}
+
+async function applyEmbeddedVideoTitle(videoUrl, fallbackTitle) {
+  try {
+    const embeddedTitle = await readEmbeddedVideoTitle(videoUrl);
+    if (!embeddedTitle || getQueryParams().videoUrl !== videoUrl) return;
+    if (refs.videoTitle?.textContent !== fallbackTitle) return;
+
+    refs.videoTitle.textContent = embeddedTitle;
+    document.title = `${embeddedTitle} — Viciograma`;
+  } catch (error) {
+    console.info('No se pudo leer el título integrado del video; se conserva el título inferido.', error);
+  }
+}
+
 /* ================================================================
    YOUTUBE: URL → Embed URL
    ================================================================ */
@@ -557,6 +607,10 @@ function loadVideo({ videoUrl, title, description }) {
   const descriptionMeta = document.querySelector('meta[name="description"]');
   if (descriptionMeta) descriptionMeta.content = pageDescription;
   updateShareButtons(canonicalUrl);
+
+  if (!title && [SOURCE_TYPE.NATIVE_MP4, SOURCE_TYPE.NATIVE_WEBM].includes(source.type)) {
+    applyEmbeddedVideoTitle(videoUrl, pageTitle);
+  }
 }
 
 /* ================================================================
