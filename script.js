@@ -236,6 +236,9 @@ const refs = {
   embedContainer:   $('embed-player-container'),
   placeholder:      $('player-placeholder'),
   placeholderDefault: $('placeholder-default'),
+  quickPlayForm: $('quick-play-form'),
+  quickPlayUrl: $('quick-play-url'),
+  quickPlayStatus: $('quick-play-status'),
   originLanding:    $('origin-landing'),
   originLandingDescription: $('origin-landing-description'),
   originTitleStatus: $('origin-title-status'),
@@ -358,6 +361,33 @@ function initUrlGenerator() {
     } else {
       setGeneratorStatus('Enlace generado. Viciograma mostrará un botón para abrir la página original en otra pestaña; la extensión podrá analizarla cuando esté instalada.', 'warning');
     }
+  });
+}
+
+function initQuickPlay() {
+  if (!refs.quickPlayForm || !refs.quickPlayUrl) return;
+
+  refs.quickPlayForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    refs.quickPlayUrl.setCustomValidity('');
+
+    let sourceUrl;
+    try {
+      sourceUrl = new URL(refs.quickPlayUrl.value.trim());
+    } catch {
+      refs.quickPlayUrl.setCustomValidity('Ingresá una URL válida que comience con https:// o http://.');
+      refs.quickPlayUrl.reportValidity();
+      return;
+    }
+
+    if (!['http:', 'https:'].includes(sourceUrl.protocol)) {
+      refs.quickPlayUrl.setCustomValidity('Solo se admiten enlaces HTTP o HTTPS.');
+      refs.quickPlayUrl.reportValidity();
+      return;
+    }
+
+    if (refs.quickPlayStatus) refs.quickPlayStatus.textContent = 'Abriendo el reproductor…';
+    window.location.assign(buildPlayerUrl(sourceUrl.href, ''));
   });
 }
 
@@ -835,6 +865,7 @@ async function init() {
   if (refs.footerYear) refs.footerYear.textContent = new Date().getFullYear();
   initIMA();
   initUrlGenerator();
+  initQuickPlay();
 
   refs.shareCopy.addEventListener('click', copyPageLink);
   refs.shareInstagram.addEventListener('click', shareToInstagramStory);

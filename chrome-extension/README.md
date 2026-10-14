@@ -1,6 +1,6 @@
 # Extensión Viciograma para Chrome
 
-La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. Permite previsualizar el primer resultado (sin reproducción automática), elegir otro medio y abrirlo en Viciograma con el título tomado automáticamente de la página. El popup no permite editar el título; la descripción se puede completar opcionalmente.
+La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. Permite previsualizar el primer resultado (sin reproducción automática) y elegir otro medio. Cada medio tiene un máximo de cinco minutos efectivos de reproducción en la vista previa; pausar no consume el límite. El popup no genera ni abre enlaces de Viciograma.
 
 ## Cargar para probar
 
@@ -13,10 +13,6 @@ No hace falta configurar permisos de sitios por adelantado. `activeTab` y `scrip
 
 ## Formatos y límites
 
-Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `wav`, `ogg`, `mp4`, `webm`, `m3u8`, entre otros). Los enlaces `blob:` y `data:` se excluyen porque no son URLs persistentes que Viciograma pueda reutilizar. Un enlace protegido por autenticación, token temporal, CORS, DRM o restricciones del alojamiento puede no funcionar fuera de su pestaña original. La extensión no descarga ni extrae archivos del servidor; solo lee URLs que la página ya expone al navegador.
+Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `wav`, `ogg`, `mp4`, `webm`, `m3u8`, entre otros). Los enlaces `blob:` y `data:` se excluyen. Un enlace protegido por autenticación, token temporal, CORS, DRM o restricciones del alojamiento puede no funcionar en la vista previa. La extensión no descarga ni extrae archivos del servidor; solo lee URLs que la página ya expone al navegador.
 
 Si no aparecen enlaces, esperá a que la página termine de cargar y abrí de nuevo el popup. Algunas páginas solo revelan la URL después de una interacción, o no la exponen en el DOM.
-
-## URL del sitio
-
-El popup genera enlaces a `https://johnconnorftr.github.io/Viciograma/index.html`. Si se cambia la ubicación de GitHub Pages, actualizá `PLAYER_URL` en `popup.js` y volvé a cargar la extensión.

@@ -1,6 +1,6 @@
 'use strict';
 
-const PLAYER_URL = 'https://johnconnorftr.github.io/Viciograma/index.html';
+const PREVIEW_LIMIT_MS = 5 * 60 * 1000;
 const refs = {
   scanState: document.getElementById('scan-state'),
   pageTitle: document.getElementById('page-title'),
@@ -8,15 +8,17 @@ const refs = {
   mediaCount: document.getElementById('media-count'),
   previewFrame: document.getElementById('preview-frame'),
   previewMessage: document.getElementById('preview-message'),
+  previewLimit: document.getElementById('preview-limit'),
   mediaList: document.getElementById('media-list'),
-  shareDescription: document.getElementById('share-description'),
-  openPlayer: document.getElementById('open-viciograma'),
-  notice: document.getElementById('notice'),
 };
 
 let activeTab;
 let candidates = [];
-let selectedCandidate = null;
+let previewRemainingMs = PREVIEW_LIMIT_MS;
+let previewStartedAt = null;
+let previewTimerId = null;
+let activePreviewUrl = '';
+const previewTimeByUrl = new Map();
 
 function setScanState(message, state = '') {
   refs.scanState.textContent = message;
@@ -34,15 +36,80 @@ function displayCandidateName(candidate) {
   }
 }
 
+function formatPreviewTime(milliseconds) {
+  const totalSeconds = Math.ceil(Math.max(milliseconds, 0) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function updatePreviewLimit(message) {
+  refs.previewLimit.textContent = message
+    || `Vista previa restante: ${formatPreviewTime(previewRemainingMs)}. Se cuenta el tiempo mientras se reproduce.`;
+}
+
+function stopPreviewTimer() {
+  if (previewStartedAt !== null) {
+    previewRemainingMs = Math.max(0, previewRemainingMs - (performance.now() - previewStartedAt));
+    previewStartedAt = null;
+  }
+  if (previewTimerId !== null) {
+    window.clearInterval(previewTimerId);
+    previewTimerId = null;
+  }
+  if (activePreviewUrl) previewTimeByUrl.set(activePreviewUrl, previewRemainingMs);
+}
+
+function enforcePreviewLimit(media) {
+  media.pause();
+  media.controls = false;
+  stopPreviewTimer();
+  previewRemainingMs = 0;
+  if (activePreviewUrl) previewTimeByUrl.set(activePreviewUrl, 0);
+  updatePreviewLimit('Vista previa finalizada. El límite de 5 minutos por medio se alcanzó.');
+}
+
+function startPreviewTimer(media) {
+  if (previewRemainingMs <= 0) {
+    enforcePreviewLimit(media);
+    return;
+  }
+  if (previewStartedAt !== null) return;
+
+  previewStartedAt = performance.now();
+  previewTimerId = window.setInterval(() => {
+    const now = performance.now();
+    previewRemainingMs = Math.max(0, previewRemainingMs - (now - previewStartedAt));
+    previewStartedAt = now;
+    if (previewRemainingMs <= 0) {
+      enforcePreviewLimit(media);
+    } else {
+      updatePreviewLimit();
+    }
+  }, 250);
+  updatePreviewLimit();
+}
+
+function attachPreviewLimit(media) {
+  media.addEventListener('play', () => startPreviewTimer(media));
+  media.addEventListener('pause', stopPreviewTimer);
+  media.addEventListener('ended', stopPreviewTimer);
+  media.addEventListener('emptied', stopPreviewTimer);
+}
+
 function renderPreview(candidate) {
-  selectedCandidate = candidate;
+  stopPreviewTimer();
+  activePreviewUrl = candidate.url;
+  previewRemainingMs = previewTimeByUrl.get(activePreviewUrl) ?? PREVIEW_LIMIT_MS;
   refs.previewFrame.replaceChildren();
+  updatePreviewLimit();
 
   if (candidate.kind === 'audio') {
     const audio = document.createElement('audio');
     audio.controls = true;
     audio.preload = 'none';
     audio.src = candidate.url;
+    attachPreviewLimit(audio);
     refs.previewFrame.append(audio);
   } else if (candidate.kind === 'video') {
     const video = document.createElement('video');
@@ -50,6 +117,7 @@ function renderPreview(candidate) {
     video.playsInline = true;
     video.preload = 'metadata';
     video.src = candidate.url;
+    attachPreviewLimit(video);
     refs.previewFrame.append(video);
   } else {
     const message = document.createElement('p');
@@ -61,7 +129,6 @@ function renderPreview(candidate) {
   for (const option of refs.mediaList.querySelectorAll('.media-option')) {
     option.setAttribute('aria-pressed', String(option.dataset.url === candidate.url));
   }
-  refs.openPlayer.disabled = false;
 }
 
 function renderCandidates(foundCandidates) {
@@ -75,7 +142,7 @@ function renderCandidates(foundCandidates) {
     message.className = 'empty-preview';
     message.textContent = 'No se encontraron enlaces directos de audio o video en esta página. Esperá a que cargue el archivo y volvé a abrir la extensión.';
     refs.previewFrame.append(message);
-    refs.openPlayer.disabled = true;
+    updatePreviewLimit('No hay medios para previsualizar.');
     return;
   }
 
@@ -160,29 +227,9 @@ async function scanActiveTab() {
   if (!result?.result) throw new Error('No se pudo analizar el contenido de la pestaña.');
   refs.pageTitle.textContent = result.result.pageTitle || 'Página actual';
   refs.pageDescription.textContent = result.result.pageDescription || activeTab.url;
-  refs.shareDescription.value = result.result.pageDescription || '';
   renderCandidates(result.result.candidates);
   setScanState('Listo', 'done');
 }
-
-refs.openPlayer.addEventListener('click', async () => {
-  if (!selectedCandidate) return;
-  const playerUrl = new URL(PLAYER_URL);
-  playerUrl.searchParams.set('v', selectedCandidate.url);
-
-  const title = refs.pageTitle.textContent.trim();
-  const description = refs.shareDescription.value.trim();
-  if (title && title !== 'Página actual') playerUrl.searchParams.set('t', title);
-  if (description) playerUrl.searchParams.set('d', description);
-
-  try {
-    await chrome.tabs.create({ url: playerUrl.href });
-    refs.notice.textContent = 'Viciograma se abrió en una pestaña nueva.';
-  } catch (error) {
-    refs.notice.textContent = 'No se pudo abrir Viciograma en una pestaña nueva.';
-    console.error('No se pudo abrir Viciograma:', error);
-  }
-});
 
 scanActiveTab().catch((error) => {
   setScanState('No disponible', 'error');
@@ -193,6 +240,6 @@ scanActiveTab().catch((error) => {
   message.className = 'empty-preview';
   message.textContent = error.message;
   refs.previewFrame.append(message);
-  refs.openPlayer.disabled = true;
+  updatePreviewLimit('No se pudo iniciar la vista previa.');
   console.error('Error al analizar la pestaña actual:', error);
 });

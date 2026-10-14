@@ -31,6 +31,9 @@
       <div class="preview-frame" id="preview-frame">
         <p class="empty-preview" id="preview-message">Buscando audio y video en esta página…</p>
       </div>
+      <p class="preview-limit" id="preview-limit" role="status" aria-live="polite">
+        Límite de vista previa: 05:00 por medio.
+      </p>
     </section>
 
     <section class="media-section" aria-labelledby="media-title">
@@ -40,15 +43,6 @@
       <div class="media-list" id="media-list"></div>
     </section>
 
-    <section class="details-section">
-      <p class="title-source">El título se toma automáticamente de la página de origen.</p>
-      <label for="share-description">Descripción <span>(opcional)</span></label>
-      <textarea id="share-description" rows="2" maxlength="500"></textarea>
-      <button class="primary-button" id="open-viciograma" type="button" disabled>
-        <span aria-hidden="true">↗</span> Abrir en Viciograma
-      </button>
-      <p class="notice" id="notice" role="status" aria-live="polite"></p>
-    </section>
   </main>
 </body>
 </html>

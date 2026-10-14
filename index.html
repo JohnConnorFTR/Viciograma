@@ -141,10 +141,18 @@
             <i class="bi bi-play-circle vg-placeholder-icon"></i>
             <p class="mt-3 mb-1 fs-5 fw-semibold">Ningún video cargado</p>
             <p class="text-muted small">
-              Usá <code>?v=URL_DEL_VIDEO&amp;t=TITULO&amp;d=DESCRIPCION</code>.
-              Si omitís el título, se intenta leer de los metadatos del archivo y, si no están disponibles,
-              se infiere del enlace. La lectura depende de que el servidor remoto permita acceso desde el navegador.
+              Pegá una URL directa de audio o video para reproducirla.
             </p>
+            <form class="vg-quick-play-form" id="quick-play-form">
+              <label class="visually-hidden" for="quick-play-url">URL del audio o video</label>
+              <input class="vg-generator-input" id="quick-play-url" type="url"
+                     placeholder="https://…/video.mp4" required autocomplete="url" />
+              <button class="vg-share-button vg-generator-primary" type="submit">
+                <i class="bi bi-play-fill" aria-hidden="true"></i><span>Reproducir</span>
+              </button>
+            </form>
+            <p class="vg-quick-play-status small text-muted mt-2 mb-0" id="quick-play-status"
+               role="status" aria-live="polite"></p>
           </div>
           <div class="vg-origin-landing" id="origin-landing" hidden>
             <i class="bi bi-box-arrow-up-right vg-origin-icon" aria-hidden="true"></i>

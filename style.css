@@ -295,6 +295,38 @@ body {
   color: var(--vg-border);
 }
 
+.vg-quick-play-form {
+  display: flex;
+  width: min(100%, 560px);
+  justify-content: center;
+  gap: 8px;
+  margin: 14px auto 0;
+}
+
+.vg-quick-play-form .vg-generator-input {
+  min-width: 0;
+  background: #101012;
+  text-align: left;
+}
+
+.vg-quick-play-form .vg-share-button {
+  flex: 0 0 auto;
+}
+
+.vg-quick-play-status {
+  min-height: 1.25em;
+}
+
+@media (max-width: 576px) {
+  .vg-quick-play-form {
+    flex-direction: column;
+  }
+
+  .vg-quick-play-form .vg-share-button {
+    width: 100%;
+  }
+}
+
 .vg-origin-landing {
   width: min(100%, 620px);
   padding: 28px 24px;
