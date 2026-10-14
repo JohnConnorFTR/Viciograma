@@ -10,8 +10,10 @@ const refs = {
   previewMessage: document.getElementById('preview-message'),
   previewLimit: document.getElementById('preview-limit'),
   mediaList: document.getElementById('media-list'),
+  openPlayer: document.getElementById('open-viciograma'),
 };
 
+const PLAYER_URL = 'https://johnconnorftr.github.io/Viciograma/index.html';
 let activeTab;
 let candidates = [];
 let previewRemainingMs = PREVIEW_LIMIT_MS;
@@ -20,12 +22,37 @@ let previewTimerId = null;
 let activePreviewUrl = '';
 const previewTimeByUrl = new Map();
 
+function getCandidateTitle(candidate) {
+  try {
+    const url = new URL(candidate.url);
+    const mediaFile = url.pathname.split('/').reverse().map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        return part;
+      }
+    }).find((part) => /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i.test(part));
+
+    if (mediaFile) {
+      return mediaFile
+        .replace(/\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i, '')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+    }
+  } catch {
+    return '';
+  }
+  return candidate.label || '';
+}
+
 function setScanState(message, state = '') {
   refs.scanState.textContent = message;
   refs.scanState.dataset.state = state;
 }
 
 function displayCandidateName(candidate) {
+  const title = getCandidateTitle(candidate);
+  if (title) return title;
   if (candidate.label) return candidate.label;
   try {
     const url = new URL(candidate.url);
@@ -106,14 +133,14 @@ function renderPreview(candidate) {
 
   if (candidate.kind === 'audio') {
     const audio = document.createElement('audio');
-    audio.controls = true;
+    audio.controls = previewRemainingMs > 0;
     audio.preload = 'none';
     audio.src = candidate.url;
     attachPreviewLimit(audio);
     refs.previewFrame.append(audio);
   } else if (candidate.kind === 'video') {
     const video = document.createElement('video');
-    video.controls = true;
+    video.controls = previewRemainingMs > 0;
     video.playsInline = true;
     video.preload = 'metadata';
     video.src = candidate.url;
@@ -126,9 +153,14 @@ function renderPreview(candidate) {
     refs.previewFrame.append(message);
   }
 
+  if (previewRemainingMs <= 0) {
+    updatePreviewLimit('Vista previa finalizada. El límite de 5 minutos por medio se alcanzó.');
+  }
+
   for (const option of refs.mediaList.querySelectorAll('.media-option')) {
     option.setAttribute('aria-pressed', String(option.dataset.url === candidate.url));
   }
+  refs.openPlayer.disabled = false;
 }
 
 function renderCandidates(foundCandidates) {
@@ -143,6 +175,7 @@ function renderCandidates(foundCandidates) {
     message.textContent = 'No se encontraron enlaces directos de audio o video en esta página. Esperá a que cargue el archivo y volvé a abrir la extensión.';
     refs.previewFrame.append(message);
     updatePreviewLimit('No hay medios para previsualizar.');
+    refs.openPlayer.disabled = true;
     return;
   }
 
@@ -191,7 +224,16 @@ async function scanActiveTab() {
         }
         if (!['http:', 'https:'].includes(url.protocol) || !mediaPattern.test(`${url.pathname}${url.search}`)) return;
 
-        const extension = url.pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || '';
+        const extension = url.pathname.split('/').reverse()
+          .map((part) => {
+            try {
+              return decodeURIComponent(part);
+            } catch {
+              return part;
+            }
+          })
+          .find((part) => /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i.test(part))
+          ?.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || '';
         const kind = /^(mp3|m4a|aac|wav|flac|ogg|opus)$/.test(extension)
           ? 'audio'
           : /^m3u8$/.test(extension)
@@ -231,6 +273,24 @@ async function scanActiveTab() {
   setScanState('Listo', 'done');
 }
 
+refs.openPlayer.addEventListener('click', async () => {
+  const selectedOption = refs.mediaList.querySelector('.media-option[aria-pressed="true"]');
+  const candidate = candidates.find((item) => item.url === selectedOption?.dataset.url);
+  if (!candidate) return;
+
+  const playerUrl = new URL(PLAYER_URL);
+  playerUrl.searchParams.set('v', candidate.url);
+  const title = getCandidateTitle(candidate);
+  if (title) playerUrl.searchParams.set('t', title);
+
+  try {
+    await chrome.tabs.create({ url: playerUrl.href });
+  } catch (error) {
+    setScanState('No se pudo abrir Viciograma', 'error');
+    console.error('No se pudo abrir Viciograma:', error);
+  }
+});
+
 scanActiveTab().catch((error) => {
   setScanState('No disponible', 'error');
   refs.pageTitle.textContent = 'No se pudo analizar la pestaña';
@@ -241,5 +301,6 @@ scanActiveTab().catch((error) => {
   message.textContent = error.message;
   refs.previewFrame.append(message);
   updatePreviewLimit('No se pudo iniciar la vista previa.');
+  refs.openPlayer.disabled = true;
   console.error('Error al analizar la pestaña actual:', error);
 });

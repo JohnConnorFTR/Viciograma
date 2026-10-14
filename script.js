@@ -240,7 +240,6 @@ const refs = {
   quickPlayUrl: $('quick-play-url'),
   quickPlayStatus: $('quick-play-status'),
   originLanding:    $('origin-landing'),
-  originLandingDescription: $('origin-landing-description'),
   originTitleStatus: $('origin-title-status'),
   originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
@@ -662,8 +661,6 @@ async function showOriginLanding(rawUrl, title, description) {
   refs.originTitleStatus.textContent = title
     ? ''
     : 'Intentando leer el título de la página de origen…';
-  refs.originLandingDescription.textContent = description
-    || `Abrí ${sourceUrl.hostname} en una pestaña nueva para ver el contenido en su sitio de origen.`;
 
   let landingTitle = title || `Abrir contenido en ${sourceUrl.hostname}`;
   setInfoBox(landingTitle, description || `Enlace externo alojado en ${sourceUrl.hostname}.`, [
