@@ -25,24 +25,43 @@ const previewTimeByUrl = new Map();
 function getCandidateTitle(candidate) {
   try {
     const url = new URL(candidate.url);
-    const mediaFile = url.pathname.split('/').reverse().map((part) => {
-      try {
-        return decodeURIComponent(part);
-      } catch {
-        return part;
+    const decodePart = (value) => {
+      let decoded = value.replace(/\+/g, ' ');
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const next = decodeURIComponent(decoded);
+          if (next === decoded) break;
+          decoded = next;
+        } catch {
+          break;
+        }
       }
-    }).find((part) => /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i.test(part));
+      return decoded;
+    };
+    const extension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
+    const queryValues = [...url.searchParams.entries()]
+      .sort(([left], [right]) => /^(filename|file|name|title|download)$/i.test(right)
+        - /^(filename|file|name|title|download)$/i.test(left))
+      .map(([, value]) => value);
+    const candidates = [
+      ...url.pathname.split('/').filter(Boolean).reverse(),
+      ...queryValues,
+      url.href,
+    ];
 
-    if (mediaFile) {
-      return mediaFile
-        .replace(/\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i, '')
-        .replace(/[_-]+/g, ' ')
-        .trim();
+    for (const value of candidates) {
+      const filename = decodePart(value).split(/[/?#&=]/).reverse().find((part) => extension.test(part));
+      if (filename) {
+        const title = filename.replace(extension, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!/^(index|file|download|video|stream|view|watch)$/i.test(title)) return title;
+      }
     }
+    const label = candidate.label?.trim();
+    if (label && !/^(index|file|download|video|stream|view|watch)$/i.test(label)) return label;
   } catch {
     return '';
   }
-  return candidate.label || '';
+  return '';
 }
 
 function setScanState(message, state = '') {
@@ -222,6 +241,7 @@ async function scanActiveTab() {
     target: { tabId: tab.id },
     func: () => {
       const mediaPattern = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)(?:$|[?#])/i;
+      const mediaExtension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
       const found = new Map();
       const add = (rawUrl, label = '') => {
         if (typeof rawUrl !== 'string' || !rawUrl || /^(blob:|data:|javascript:)/i.test(rawUrl)) return;
@@ -233,16 +253,9 @@ async function scanActiveTab() {
         }
         if (!['http:', 'https:'].includes(url.protocol) || !mediaPattern.test(`${url.pathname}${url.search}`)) return;
 
-        const extension = url.pathname.split('/').reverse()
-          .map((part) => {
-            try {
-              return decodeURIComponent(part);
-            } catch {
-              return part;
-            }
-          })
-          .find((part) => /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i.test(part))
-          ?.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || '';
+        const extension = `${url.pathname}${url.search}`.replace(/\+/g, ' ').split(/[/?#&=]/).reverse()
+          .find((part) => mediaExtension.test(part))
+          ?.match(mediaExtension)?.[1]?.toLowerCase() || '';
         const kind = /^(mp3|m4a|aac|wav|flac|ogg|opus)$/.test(extension)
           ? 'audio'
           : /^m3u8$/.test(extension)

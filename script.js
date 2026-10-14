@@ -27,6 +27,87 @@ const SOURCE_TYPE = Object.freeze({
   UNKNOWN:     'unknown',
 });
 
+const MEDIA_FILE_EXTENSION = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
+
+function decodeUrlPart(value) {
+  let decoded = value.replace(/\+/g, ' ');
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  return decoded;
+}
+
+function normalizeUrlTitle(value) {
+  const title = value
+    .replace(MEDIA_FILE_EXTENSION, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return /^(index|file|download|video|stream|view|watch)$/i.test(title) ? '' : title;
+}
+
+function getUrlTitle(rawUrl, includePathSlug = false) {
+  try {
+    const url = new URL(rawUrl);
+    const pathParts = url.pathname.split('/').filter(Boolean).reverse();
+    const queryEntries = [...url.searchParams.entries()]
+      .sort(([left], [right]) => /^(filename|file|name|title|download)$/i.test(right)
+        - /^(filename|file|name|title|download)$/i.test(left))
+    const queryParts = queryEntries.map(([, value]) => value);
+    const candidates = [...pathParts, ...queryParts, url.href];
+
+    for (const candidate of candidates) {
+      const parts = decodeUrlPart(candidate).split(/[/?#&=]/).reverse();
+      const filename = parts.find((part) => MEDIA_FILE_EXTENSION.test(part));
+      if (filename) {
+        const title = normalizeUrlTitle(filename);
+        if (title) return title;
+      }
+    }
+
+    for (const [key, value] of queryEntries) {
+      if (!/^(filename|file|name|title)$/i.test(key || '')) continue;
+      const namedValue = decodeUrlPart(value).split(/[/?#&=]/).reverse()
+        .find((part) => !/^(index|file|download|video|stream|view|watch)$/i.test(part));
+      const title = namedValue ? normalizeUrlTitle(namedValue) : '';
+      if (title && !/^[a-z0-9_-]{16,}$/i.test(title)) return title;
+    }
+
+    if (includePathSlug) {
+      for (const part of pathParts) {
+        const slug = decodeUrlPart(part).replace(/\.[^.]+$/, '');
+        const title = normalizeUrlTitle(slug);
+        if (title && !/^[a-z0-9_-]{16,}$/i.test(title)) return title;
+      }
+    }
+  } catch {
+    return '';
+  }
+  return '';
+}
+
+function hasMediaUrlExtension(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    const candidates = [
+      ...url.pathname.split('/'),
+      ...url.searchParams.values(),
+      url.href,
+    ];
+    return candidates.some((candidate) =>
+      decodeUrlPart(candidate).split(/[/?#&=]/).some((part) => MEDIA_FILE_EXTENSION.test(part))
+    );
+  } catch {
+    return false;
+  }
+}
+
 /* ================================================================
    DETECCIÓN DE TIPO DE FUENTE
    ================================================================ */
@@ -35,17 +116,24 @@ function detectSourceType(url) {
     const parsed   = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
     const path     = parsed.pathname.toLowerCase();
+    const extension = [...parsed.pathname.split('/'), ...parsed.searchParams.values(), parsed.href]
+      .map(decodeUrlPart)
+      .flatMap((part) => part.split(/[/?#&=]/))
+      .reverse()
+      .find((part) => MEDIA_FILE_EXTENSION.test(part))
+      ?.match(MEDIA_FILE_EXTENSION)?.[1]?.toLowerCase();
 
     if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
       return { type: SOURCE_TYPE.YOUTUBE, url };
     }
-    if (path.endsWith('.m3u8')) {
+    if (extension === 'm3u8' || path.endsWith('.m3u8')) {
       return { type: SOURCE_TYPE.HLS, url };
     }
-    if (path.endsWith('.webm')) {
+    if (extension === 'webm' || path.endsWith('.webm')) {
       return { type: SOURCE_TYPE.NATIVE_WEBM, url };
     }
-    if (/\.(mp4|mov|ogg|ogv|3gp)(\?.*)?$/.test(path)) {
+    if (/^(mp4|m4v|mov|ogg|ogv|3gp)$/.test(extension || '')
+        || /\.(mp4|m4v|mov|ogg|ogv|3gp)(\?.*)?$/.test(path)) {
       return { type: SOURCE_TYPE.NATIVE_MP4, url };
     }
     return { type: SOURCE_TYPE.NATIVE_MP4, url };
@@ -87,10 +175,7 @@ function inferVideoMetadata(videoUrl, sourceType) {
   try {
     const video = new URL(videoUrl);
     const hostname = video.hostname.replace(/^www\./i, '');
-    const filename = decodeURIComponent(video.pathname.split('/').pop() || '')
-      .replace(/\.[^.]+$/, '')
-      .replace(/[_-]+/g, ' ')
-      .trim();
+    const filename = getUrlTitle(videoUrl);
     const title = filename && !/^(index|video|stream)$/i.test(filename)
       ? filename
       : sourceType === SOURCE_TYPE.YOUTUBE
@@ -281,7 +366,7 @@ function buildPlayerUrl(sourceUrl, description) {
 function isDirectMediaUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
-    return /\.(mp4|m4v|webm|mov|ogg|ogv|3gp|m3u8)$/i.test(parsed.pathname)
+    return hasMediaUrlExtension(rawUrl)
       || parsed.hostname === 'youtu.be'
       || parsed.hostname === 'youtube.com'
       || parsed.hostname.endsWith('.youtube.com');
@@ -662,7 +747,8 @@ async function showOriginLanding(rawUrl, title, description) {
     ? ''
     : 'Intentando leer el título de la página de origen…';
 
-  let landingTitle = title || `Abrir contenido en ${sourceUrl.hostname}`;
+  const urlTitle = getUrlTitle(sourceUrl.href, true);
+  let landingTitle = title || urlTitle || `Abrir contenido en ${sourceUrl.hostname}`;
   setInfoBox(landingTitle, description || `Enlace externo alojado en ${sourceUrl.hostname}.`, [
     { icon: 'bi-box-arrow-up-right', text: 'Enlace externo' },
     { icon: 'bi-globe2', text: sourceUrl.hostname },
@@ -680,10 +766,14 @@ async function showOriginLanding(rawUrl, title, description) {
           { icon: 'bi-globe2', text: sourceUrl.hostname },
         ]);
       } else {
-        refs.originTitleStatus.textContent = 'La página no incluye un título; se muestra el nombre del sitio.';
+        refs.originTitleStatus.textContent = urlTitle
+          ? 'La página no incluye un título; se muestra el nombre obtenido de la URL.'
+          : 'La página no incluye un título; se muestra el nombre del sitio.';
       }
     } catch (error) {
-      refs.originTitleStatus.textContent = 'El sitio no permitió leer su título desde Viciograma. La extensión podrá obtenerlo al analizar la página.';
+      refs.originTitleStatus.textContent = urlTitle
+        ? 'No se pudo leer el título de la página; se muestra el nombre obtenido de la URL.'
+        : 'El sitio no permitió leer su título desde Viciograma. La extensión podrá obtenerlo al analizar la página.';
       console.info('No se pudo leer el título de la página externa; se usa el título alternativo.', error);
     }
   }
@@ -848,7 +938,8 @@ function loadVideo({ videoUrl, title, description }) {
   if (descriptionMeta) descriptionMeta.content = pageDescription;
   updateShareButtons(canonicalUrl);
 
-  if (!title && [SOURCE_TYPE.NATIVE_MP4, SOURCE_TYPE.NATIVE_WEBM].includes(source.type)) {
+  if (!title && !getUrlTitle(videoUrl)
+      && [SOURCE_TYPE.NATIVE_MP4, SOURCE_TYPE.NATIVE_WEBM].includes(source.type)) {
     videoTitleReady = applyEmbeddedVideoTitle(videoUrl, pageTitle);
   }
 }
