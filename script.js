@@ -352,6 +352,17 @@ function buildPlayerUrl(sourceUrl, description) {
 function isDirectMediaUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    const isStorageLandingPage = hostname === 'mediafire.com'
+      || hostname === 'drive.google.com'
+      || hostname === 'docs.google.com'
+      || hostname === 'mega.nz'
+      || hostname === 'onedrive.live.com'
+      || hostname === '1drv.ms'
+      || (hostname === 'dropbox.com'
+        && /^\/(?:s|sh|scl\/fo)\//i.test(parsed.pathname));
+    if (isStorageLandingPage) return false;
+
     const lastPathSegment = decodeUrlPart(parsed.pathname.split('/').filter(Boolean).pop() || '');
     const hasFileNameQuery = ['file', 'filename'].some((key) =>
       [...parsed.searchParams.getAll(key)].some((value) =>
