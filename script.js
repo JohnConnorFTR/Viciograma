@@ -401,45 +401,6 @@ function loadVideo({ videoUrl, title, description }) {
 }
 
 /* ================================================================
-   GOOGLE ADSENSE — Activación dinámica
-   ================================================================ */
-function initAdsense() {
-  const client = window.VG && window.VG.ADS_CLIENT;
-  if (!client || client === 'ca-pub-XXXXXXXXXXXXXXXX') return;
-
-  if (!document.querySelector('script[src*="adsbygoogle"]')) {
-    const s       = document.createElement('script');
-    s.async       = true;
-    s.src         = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`;
-    s.crossOrigin = 'anonymous';
-    document.head.appendChild(s);
-  }
-
-  document.querySelectorAll('.vg-ad-banner').forEach((banner) => {
-    const placeholder = banner.querySelector('.vg-ad-placeholder');
-    const slot = banner.id === 'ad-top'
-      ? (window.VG.ADS_SLOT_TOP    || '')
-      : (window.VG.ADS_SLOT_BOTTOM || '');
-
-    if (!slot || slot === '1111111111' || slot === '2222222222') return;
-    if (banner.querySelector('ins')) return; // ya activado
-
-    const ins = document.createElement('ins');
-    ins.className = 'adsbygoogle';
-    ins.style.display = 'block';
-    ins.dataset.adClient            = client;
-    ins.dataset.adSlot              = slot;
-    ins.dataset.adFormat            = 'auto';
-    ins.dataset.fullWidthResponsive = 'true';
-
-    if (placeholder) placeholder.replaceWith(ins);
-    else banner.appendChild(ins);
-
-    (window.adsbygoogle = window.adsbygoogle || []).push({});
-  });
-}
-
-/* ================================================================
    INICIALIZACIÓN
    ================================================================ */
 function init() {
@@ -447,7 +408,6 @@ function init() {
 
   const params = getQueryParams();
   loadVideo(params);
-  initAdsense();
 
   // SDK de Facebook listo → inyectar botones y comentarios
   document.addEventListener('fb-sdk-ready', () => {

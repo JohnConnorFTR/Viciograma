@@ -22,13 +22,6 @@
   ============================================================ -->
   <script>
     window.VG = {
-      // ─── GOOGLE ADSENSE ────────────────────────────────────────
-      // Cuando tengas tu cuenta, reemplazá estos valores y descomentá
-      // el bloque <script> de AdSense más abajo.
-      ADS_CLIENT:      'ca-pub-XXXXXXXXXXXXXXXX',   // ← TU ca-pub-XXXXXXXXXX
-      ADS_SLOT_TOP:    '1111111111',                // ← SLOT BANNER SUPERIOR
-      ADS_SLOT_BOTTOM: '2222222222',                // ← SLOT BANNER INFERIOR
-
       // ─── FACEBOOK APP ──────────────────────────────────────────
       // Cuando tengas tu App ID de developers.facebook.com, pegalo aquí.
       // Like, Share, Guardar y Comentarios se activan solos.
@@ -36,13 +29,10 @@
     };
   </script>
 
-  <!-- Google AdSense — Descomentá cuando tengas tu Publisher ID -->
-  <!--
+  <!-- AdSense test publisher; data-adtest="on" mantiene los anuncios en modo prueba. -->
   <script async
-    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
-    crossorigin="anonymous">
-  </script>
-  -->
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3940256099942544"
+    crossorigin="anonymous"></script>
 
   <!-- HLS.js para streams m3u8 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js" defer></script>
@@ -138,27 +128,14 @@
 
       <!-- ===== AD BANNER SUPERIOR ===== -->
       <div class="vg-ad-banner mb-3" id="ad-top" aria-label="Publicidad">
-        <!--
-          ╔══════════════════════════════════════════════════════╗
-          ║  GOOGLE ADSENSE — BANNER SUPERIOR                    ║
-          ║  Para activar:                                       ║
-          ║  1. Completá ADS_CLIENT, ADS_SLOT_TOP en window.VG  ║
-          ║  2. Descomentá el bloque <ins> de abajo             ║
-          ║  3. Descomentá el <script> de AdSense en el <head>  ║
-          ╚══════════════════════════════════════════════════════╝
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-               data-ad-slot="1111111111"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
-          <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-        -->
-        <div class="vg-ad-placeholder">
-          <span class="text-muted small">
-            <i class="bi bi-megaphone me-1"></i>Publicidad · Google AdSense (pendiente de activar)
-          </span>
-        </div>
+        <ins class="adsbygoogle"
+             style="display:block;width:100%;max-width:300px;height:250px"
+             data-ad-client="ca-pub-3940256099942544"
+             data-ad-slot="6300978111"
+             data-ad-format="rectangle"
+             data-adtest="on"
+             data-full-width-responsive="false"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
       </div>
 
       <!-- ===== COMENTARIOS FACEBOOK ===== -->
@@ -182,20 +159,14 @@
 
       <!-- ===== AD BANNER INFERIOR ===== -->
       <div class="vg-ad-banner mb-3" id="ad-bottom" aria-label="Publicidad">
-        <!--
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-               data-ad-slot="2222222222"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
-          <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-        -->
-        <div class="vg-ad-placeholder">
-          <span class="text-muted small">
-            <i class="bi bi-megaphone me-1"></i>Publicidad · Google AdSense (pendiente de activar)
-          </span>
-        </div>
+        <ins class="adsbygoogle"
+             style="display:block;width:100%;max-width:300px;height:250px"
+             data-ad-client="ca-pub-3940256099942544"
+             data-ad-slot="6300978111"
+             data-ad-format="rectangle"
+             data-adtest="on"
+             data-full-width-responsive="false"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
       </div>
 
     </div><!-- /container -->
