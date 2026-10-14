@@ -56,7 +56,9 @@ function getCandidateTitle(candidate) {
       }
     }
     const label = candidate.label?.trim();
-    if (label && !/^(index|file|download|video|stream|view|watch)$/i.test(label)) return label;
+    if (label && !/^(index|file|download|video|stream|view|watch)$/i.test(label)) {
+      return label.replace(extension, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
   } catch {
     return '';
   }
@@ -202,10 +204,33 @@ async function scanActiveTab() {
   const [result] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
-      const mediaPattern = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)(?:$|[?#])/i;
       const mediaExtension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
       const found = new Map();
-      const add = (rawUrl, label = '') => {
+      const getExtension = (value) => {
+        try {
+          const decoded = decodeURIComponent(value.replace(/\+/g, ' '));
+          return decoded.split(/[/?#&=]/).reverse()
+            .find((part) => mediaExtension.test(part))
+            ?.match(mediaExtension)?.[1]?.toLowerCase() || '';
+        } catch {
+          return value.split(/[/?#&=]/).reverse()
+            .find((part) => mediaExtension.test(part))
+            ?.match(mediaExtension)?.[1]?.toLowerCase() || '';
+        }
+      };
+      const getMimeExtension = (mime) => ({
+        'video/mp4': 'mp4',
+        'video/webm': 'webm',
+        'video/ogg': 'ogv',
+        'application/vnd.apple.mpegurl': 'm3u8',
+        'application/x-mpegurl': 'm3u8',
+        'audio/mpeg': 'mp3',
+        'audio/mp4': 'm4a',
+        'audio/ogg': 'ogg',
+        'audio/wav': 'wav',
+      })[mime?.split(';')[0].trim().toLowerCase()] || '';
+      const getLabelExtension = (label) => getExtension(label || '');
+      const add = (rawUrl, label = '', mediaHint = '', mime = '') => {
         if (typeof rawUrl !== 'string' || !rawUrl || /^(blob:|data:|javascript:)/i.test(rawUrl)) return;
         let url;
         try {
@@ -213,30 +238,65 @@ async function scanActiveTab() {
         } catch {
           return;
         }
-        if (!['http:', 'https:'].includes(url.protocol) || !mediaPattern.test(`${url.pathname}${url.search}`)) return;
+        if (!['http:', 'https:'].includes(url.protocol)) return;
 
-        const extension = `${url.pathname}${url.search}`.replace(/\+/g, ' ').split(/[/?#&=]/).reverse()
-          .find((part) => mediaExtension.test(part))
-          ?.match(mediaExtension)?.[1]?.toLowerCase() || '';
+        const extension = getExtension(`${url.pathname}${url.search}`)
+          || getLabelExtension(label)
+          || getMimeExtension(mime);
+        if (!extension && !mediaHint) return;
+
         const kind = /^(mp3|m4a|aac|wav|flac|ogg|opus)$/.test(extension)
           ? 'audio'
-          : /^m3u8$/.test(extension)
+          : extension === 'm3u8'
             ? 'stream'
-            : 'video';
-        if (!found.has(url.href)) found.set(url.href, { url: url.href, label, kind });
+            : mediaHint || 'video';
+        if (!found.has(url.href)) found.set(url.href, { url: url.href, label, kind, extension });
       };
 
       document.querySelectorAll('video, audio').forEach((media) => {
-        add(media.currentSrc || media.src, media.getAttribute('title') || media.getAttribute('aria-label') || '');
-        media.querySelectorAll('source[src]').forEach((source) => add(source.src, source.getAttribute('title') || ''));
+        const mediaHint = media.tagName.toLowerCase();
+        const label = media.getAttribute('title') || media.getAttribute('aria-label') || '';
+        add(media.currentSrc || media.src, label, mediaHint, media.getAttribute('type') || '');
+        media.querySelectorAll('source[src]').forEach((source) =>
+          add(source.src, source.getAttribute('title') || label, mediaHint, source.getAttribute('type') || '')
+        );
       });
       document.querySelectorAll('a[href]').forEach((link) => {
-        if (mediaPattern.test(link.href) || link.hasAttribute('download')) {
-          add(link.href, link.getAttribute('download') || link.textContent.trim());
+        const label = link.getAttribute('download') || link.textContent.trim();
+        if (getExtension(link.href) || getLabelExtension(label) || link.hasAttribute('download')) {
+          add(link.href, label);
         }
       });
+      const isGoogleDrivePage = /(^|\.)drive\.google\.com$/i.test(location.hostname)
+        || /(^|\.)drive\.usercontent\.google\.com$/i.test(location.hostname);
+      const driveFormCandidates = [];
+      if (isGoogleDrivePage) {
+        const fileLink = [...document.querySelectorAll('a[href]')]
+          .find((link) => getLabelExtension(link.textContent.trim()));
+        const fileLabel = fileLink?.textContent.trim() || document.title;
+        if (getLabelExtension(fileLabel)) {
+          document.querySelectorAll('form').forEach((form) => {
+            if (form.method.toLowerCase() !== 'get') return;
+            const action = new URL(form.action || location.href, location.href);
+            if (!/(^|\.)drive\.google\.com$/i.test(action.hostname)
+                && !/(^|\.)drive\.usercontent\.google\.com$/i.test(action.hostname)) return;
+
+            const params = new URLSearchParams(action.search);
+            for (const field of form.querySelectorAll('input[name], button[name]')) {
+              if (field.disabled || !field.name || (field.type === 'submit' && !field.value)) continue;
+              params.set(field.name, field.value);
+            }
+            action.search = params.toString();
+            add(action.href, fileLabel);
+            if (found.has(action.href)) driveFormCandidates.push(action.href);
+          });
+        }
+      }
       for (const resource of performance.getEntriesByType('resource')) {
-        add(resource.name);
+        const mediaHint = resource.initiatorType === 'video' || resource.initiatorType === 'audio'
+          ? resource.initiatorType
+          : '';
+        add(resource.name, '', mediaHint);
       }
 
       const description = document.querySelector('meta[name="description"]')?.content
@@ -245,7 +305,10 @@ async function scanActiveTab() {
       return {
         pageTitle: document.title.trim(),
         pageDescription: description.trim(),
-        candidates: [...found.values()].slice(0, 30),
+        candidates: [
+          ...driveFormCandidates.map((url) => found.get(url)).filter(Boolean),
+          ...[...found.entries()].filter(([url]) => !driveFormCandidates.includes(url)).map(([, candidate]) => candidate),
+        ].slice(0, 30),
       };
     },
   });
@@ -262,6 +325,8 @@ refs.openPlayer.addEventListener('click', async () => {
 
   const playerUrl = new URL(PLAYER_URL);
   playerUrl.searchParams.set('v', activeCandidate.url);
+  playerUrl.searchParams.set('m', activeCandidate.kind);
+  if (activeCandidate.extension) playerUrl.searchParams.set('f', activeCandidate.extension);
   const title = getCandidateTitle(activeCandidate);
   if (title) playerUrl.searchParams.set('t', title);
 
