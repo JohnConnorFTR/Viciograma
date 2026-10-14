@@ -13,7 +13,6 @@ const VG_CONFIG = {
     // Agregá dominios bloqueados aquí (minúsculas, sin protocolo)
     // Ejemplo: 'sitio-restringido.com',
   ],
-  FB_NUM_POSTS: 10,
   IMA_TEST_AD_TAG: 'https://pubads.g.doubleclick.net/gampad/ads?iu=/21775744923/external/single_ad_samples&sz=640x480&cust_params=sample_ct%3Dlinear&ciu_szs=300x250&gdfp_req=1&output=vast&unviewed_position_start=1&env=vp&impl=s&correlator=',
 };
 
@@ -153,9 +152,6 @@ const refs = {
   shareInstagram:    $('share-instagram'),
   shareCopy:         $('share-copy'),
   shareStatus:       $('share-status'),
-  // Comments
-  fbCommentsWrapper: $('fb-comments-wrapper'),
-  fbPending:         $('fb-pending'),
   // Footer
   footerYear:        $('footer-year'),
 };
@@ -398,81 +394,6 @@ function setInfoBox(title, desc, meta = []) {
 }
 
 /* ================================================================
-   FACEBOOK — INYECTAR WIDGET DE COMENTARIOS
-   Parsear manualmente tras inicializar el SDK y fijar URL absoluta.
-   ================================================================ */
-function injectFBComments(pageUrl) {
-  if (!refs.fbCommentsWrapper) return;
-
-  const hasAppId = window.VG && window.VG.FB_APP_ID;
-
-  if (window.location.protocol !== 'https:') {
-    setFBCommentsStatus('Los comentarios de Facebook solo funcionan en el sitio publicado mediante HTTPS.');
-    return;
-  }
-
-  if (!hasAppId) {
-    setFBCommentsStatus('Falta configurar el App ID de Facebook en index.html.');
-    return;
-  }
-
-  if (!window.FB || !window.FB.XFBML) {
-    setFBCommentsStatus('Conectando con Facebook…');
-    return;
-  }
-
-  const previousWidget = refs.fbCommentsWrapper.querySelector('.fb-comments');
-  if (previousWidget) previousWidget.remove();
-
-  const widget = document.createElement('div');
-  widget.className = 'fb-comments';
-  widget.setAttribute('data-href', pageUrl);
-  widget.setAttribute('data-width', String(Math.min(refs.fbCommentsWrapper.clientWidth || 550, 550)));
-  widget.setAttribute('data-numposts', String(VG_CONFIG.FB_NUM_POSTS));
-  widget.setAttribute('data-colorscheme', 'dark');
-  refs.fbCommentsWrapper.appendChild(widget);
-  setFBCommentsStatus('Cargando los comentarios de Facebook…');
-
-  try {
-    window.FB.XFBML.parse(refs.fbCommentsWrapper, () => {
-      const iframe = refs.fbCommentsWrapper.querySelector('.fb-comments iframe');
-      if (iframe) {
-        if (refs.fbPending) refs.fbPending.style.display = 'none';
-      } else {
-        setFBCommentsStatus('Facebook no mostró los comentarios. Revisá que el dominio esté agregado y la app esté activa en Meta Developers.');
-      }
-    });
-  } catch (error) {
-    setFBCommentsStatus('No se pudieron cargar los comentarios. Revisá la configuración de la app de Facebook.');
-    console.error('Error al procesar el plugin de comentarios de Facebook:', error);
-  }
-}
-
-function setFBCommentsStatus(message) {
-  if (!refs.fbPending) return;
-  const paragraph = refs.fbPending.querySelector('p');
-  if (paragraph) paragraph.textContent = message;
-  refs.fbPending.style.display = 'flex';
-}
-
-/* ================================================================
-   FACEBOOK — ACTUALIZAR URLS (cuando cambia el video)
-   ================================================================ */
-function updateFBWidgets(pageUrl) {
-  updateShareButtons(pageUrl);
-  if (window.FB) injectFBComments(pageUrl);
-}
-
-/* ================================================================
-   FACEBOOK — ESTADO DE ERROR (SDK no disponible / HTTP)
-   ================================================================ */
-function handleFBError() {
-  setFBCommentsStatus(window.location.protocol === 'https:'
-    ? 'No se pudo conectar con Facebook. Revisá bloqueadores de contenido y el estado de la app.'
-    : 'Los comentarios de Facebook solo funcionan en el sitio publicado mediante HTTPS.');
-}
-
-/* ================================================================
    HLS
    ================================================================ */
 function loadHLS(url, videoEl) {
@@ -512,7 +433,7 @@ function loadVideo({ videoUrl, title, description }) {
     document.title = `${pageTitle} — Viciograma`;
     const descriptionMeta = document.querySelector('meta[name="description"]');
     if (descriptionMeta) descriptionMeta.content = pageDescription;
-    updateFBWidgets(canonicalUrl);
+    updateShareButtons(canonicalUrl);
     updateShareButtons(canonicalUrl);
     return;
   }
@@ -526,7 +447,7 @@ function loadVideo({ videoUrl, title, description }) {
   const inferred = inferVideoMetadata(videoUrl, source.type);
   const pageTitle = title || inferred.title;
   const pageDescription = description || inferred.description;
-  updateFBWidgets(canonicalUrl);
+  updateShareButtons(canonicalUrl);
 
   switch (source.type) {
 
@@ -595,21 +516,8 @@ function init() {
   refs.shareCopy.addEventListener('click', copyPageLink);
   refs.shareInstagram.addEventListener('click', shareToInstagramStory);
 
-  document.addEventListener('fb-sdk-ready', () => {
-    injectFBComments(window.location.href);
-  });
-
-  document.addEventListener('fb-sdk-error', handleFBError);
-
   const params = getQueryParams();
   loadVideo(params);
-
-  // El SDK puede terminar de cargar antes de DOMContentLoaded.
-  if (window.FB && window.FB.XFBML) {
-    injectFBComments(window.location.href);
-  } else if (window.location.protocol !== 'https:') {
-    handleFBError();
-  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

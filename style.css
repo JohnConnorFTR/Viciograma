@@ -317,41 +317,16 @@ body {
 
 .vg-section-title i { color: var(--vg-orange); }
 
-.vg-fb-wrapper {
-  min-height: 60px;
-  overflow: hidden;
+.vg-comments-wrapper {
+  min-height: 120px;
   border-radius: 6px;
-  margin-top: 12px;
 }
 
-/* Aviso que se muestra mientras FB_APP_ID no está configurado */
-.vg-fb-pending {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  background: rgba(24, 119, 242, 0.08);
-  border: 1px solid rgba(24, 119, 242, 0.25);
-  border-radius: var(--vg-radius);
-  padding: 14px 16px;
-  color: #8ab4f8;
-  font-size: 0.875rem;
-}
-
-.vg-fb-pending i { color: #1877f2; flex-shrink: 0; margin-top: 2px; }
-.vg-fb-pending code {
-  background: rgba(255,255,255,0.07);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 0.8em;
-  color: #aac8ff;
-}
-
-/* Forzamos ancho al widget de Facebook */
-.fb-comments,
-.fb-comments iframe,
-.fb-comments span {
+.vg-comments-wrapper iframe.giscus-frame {
+  display: block;
   width: 100% !important;
   max-width: 100% !important;
+  border: 0;
 }
 
 /* ── FOOTER ── */
