@@ -109,6 +109,50 @@ function inferVideoMetadata(videoUrl, sourceType) {
   }
 }
 
+async function readExternalPageTitle(pageUrl) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const response = await fetch(pageUrl, {
+      signal: controller.signal,
+      headers: { Accept: 'text/html' },
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(`El sitio externo respondió con estado ${response.status}.`);
+    }
+
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytesRead = 0;
+    try {
+      while (bytesRead < 128 * 1024) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const remaining = 128 * 1024 - bytesRead;
+        const chunk = value.subarray(0, remaining);
+        chunks.push(chunk);
+        bytesRead += chunk.byteLength;
+        if (chunk.byteLength < value.byteLength) break;
+      }
+    } finally {
+      await reader.cancel();
+    }
+
+    const htmlBytes = new Uint8Array(bytesRead);
+    let offset = 0;
+    for (const chunk of chunks) {
+      htmlBytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const html = new TextDecoder().decode(htmlBytes);
+    const remoteDocument = new DOMParser().parseFromString(html, 'text/html');
+    return remoteDocument.querySelector('title')?.textContent?.trim() || '';
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function readEmbeddedVideoTitle(videoUrl) {
   const mediaInfoModule = await import(
     'https://cdn.jsdelivr.net/npm/mediainfo.js@0.3.8/dist/esm/index.js'
@@ -194,6 +238,7 @@ const refs = {
   placeholderDefault: $('placeholder-default'),
   originLanding:    $('origin-landing'),
   originLandingDescription: $('origin-landing-description'),
+  originTitleStatus: $('origin-title-status'),
   originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
   imaAdContainer:   $('ima-ad-container'),
@@ -240,23 +285,6 @@ function isDirectMediaUrl(rawUrl) {
       || parsed.hostname === 'youtu.be'
       || parsed.hostname === 'youtube.com'
       || parsed.hostname.endsWith('.youtube.com');
-  } catch {
-    return false;
-  }
-}
-
-function isCloudStoragePageUrl(rawUrl) {
-  try {
-    const hostname = new URL(rawUrl).hostname.toLowerCase();
-    return hostname === 'mediafire.com'
-      || hostname === 'www.mediafire.com'
-      || (hostname.endsWith('.mediafire.com') && !/^download\d*\./.test(hostname))
-      || hostname === 'drive.google.com'
-      || hostname === 'dropbox.com'
-      || hostname.endsWith('.dropbox.com')
-      || hostname === '1drv.ms'
-      || hostname === 'onedrive.live.com'
-      || hostname.endsWith('.sharepoint.com');
   } catch {
     return false;
   }
@@ -328,7 +356,7 @@ function initUrlGenerator() {
     refs.openGeneratedUrl.href = playerUrl;
     refs.openGeneratedUrl.hidden = false;
 
-    if (isDirectMediaUrl(parsedSourceUrl.href) && !isCloudStoragePageUrl(parsedSourceUrl.href)) {
+    if (isDirectMediaUrl(parsedSourceUrl.href)) {
       setGeneratorStatus('Enlace generado. Si el servidor permite reproducir este formato, el video abrirá en Viciograma.', 'success');
     } else {
       setGeneratorStatus('Enlace generado. Viciograma mostrará un botón para abrir la página original en otra pestaña; la extensión podrá analizarla cuando esté instalada.', 'warning');
@@ -586,32 +614,56 @@ function showPlaceholder() {
   if (refs.nativePlayer) refs.nativePlayer.removeAttribute('src');
 }
 
-function showOriginLanding(rawUrl, title, description) {
+async function showOriginLanding(rawUrl, title, description) {
   let sourceUrl;
   try {
     sourceUrl = new URL(rawUrl);
   } catch {
     showError('El enlace de origen no es válido.');
-    return;
+    return title || '';
   }
 
   if (!['http:', 'https:'].includes(sourceUrl.protocol)) {
     showError('Solo se pueden abrir enlaces HTTP o HTTPS.');
-    return;
+    return title || '';
   }
 
   showPlaceholder();
   refs.placeholderDefault.hidden = true;
   refs.originLanding.hidden = false;
   refs.originOpenLink.href = sourceUrl.href;
+  refs.originTitleStatus.textContent = title
+    ? ''
+    : 'Intentando leer el título de la página de origen…';
   refs.originLandingDescription.textContent = description
     || `Abrí ${sourceUrl.hostname} en una pestaña nueva para ver el contenido en su sitio de origen.`;
 
-  const landingTitle = title || `Abrir contenido en ${sourceUrl.hostname}`;
+  let landingTitle = title || `Abrir contenido en ${sourceUrl.hostname}`;
   setInfoBox(landingTitle, description || `Enlace externo alojado en ${sourceUrl.hostname}.`, [
     { icon: 'bi-box-arrow-up-right', text: 'Enlace externo' },
     { icon: 'bi-globe2', text: sourceUrl.hostname },
   ]);
+
+  if (!title) {
+    try {
+      const externalTitle = await readExternalPageTitle(sourceUrl.href);
+      if (getQueryParams().videoUrl !== rawUrl) return landingTitle;
+      if (externalTitle) {
+        landingTitle = externalTitle;
+        refs.originTitleStatus.textContent = '';
+        setInfoBox(landingTitle, description || `Enlace externo alojado en ${sourceUrl.hostname}.`, [
+          { icon: 'bi-box-arrow-up-right', text: 'Enlace externo' },
+          { icon: 'bi-globe2', text: sourceUrl.hostname },
+        ]);
+      } else {
+        refs.originTitleStatus.textContent = 'La página no incluye un título; se muestra el nombre del sitio.';
+      }
+    } catch (error) {
+      refs.originTitleStatus.textContent = 'El sitio no permitió leer su título desde Viciograma. La extensión podrá obtenerlo al analizar la página.';
+      console.info('No se pudo leer el título de la página externa; se usa el título alternativo.', error);
+    }
+  }
+
   document.title = `${landingTitle} — Viciograma`;
   const descriptionMeta = document.querySelector('meta[name="description"]');
   if (descriptionMeta) {
@@ -711,9 +763,8 @@ function loadVideo({ videoUrl, title, description }) {
   const pageDescription = description || inferred.description;
   updateShareButtons(canonicalUrl);
 
-  if (isCloudStoragePageUrl(videoUrl) || !isDirectMediaUrl(videoUrl)) {
-    const landingTitle = showOriginLanding(videoUrl, title, description);
-    videoTitleReady = Promise.resolve(landingTitle || pageTitle);
+  if (!isDirectMediaUrl(videoUrl)) {
+    videoTitleReady = showOriginLanding(videoUrl, title, description);
     return;
   }
 
