@@ -263,7 +263,7 @@ function updateFBComments(pageUrl) {
   try {
     setFBCommentsStatus('Cargando comentarios de Facebook…');
     window.FB.XFBML.parse($('comments-section'), () => {
-      const iframe = refs.fbComments.querySelector('iframe');
+      const iframe = $('comments-section').querySelector('.vg-fb-wrapper iframe');
       if (iframe) {
         refs.fbPending.style.display = 'none';
       } else {
@@ -440,14 +440,7 @@ function init() {
   // Año en el footer
   if (refs.footerYear) refs.footerYear.textContent = new Date().getFullYear();
 
-  // Cargar video según params de URL
-  const params = getQueryParams();
-  loadVideo(params);
-
-  // Intentar activar AdSense si está configurado
-  initAdsense();
-
-  // Cuando el SDK de Facebook se cargue, re-parsear botones y comentarios
+  // Registrar primero los eventos para no perder la señal si el SDK cargó rápido.
   document.addEventListener('fb-sdk-ready', () => {
     updateAllFB(window.location.href);
     if (refs.fbFallback) refs.fbFallback.style.display = 'none';
@@ -459,6 +452,13 @@ function init() {
     }
     setFBCommentsStatus('No se pudo conectar con Facebook. Revisá tu conexión o bloqueadores de contenido.');
   });
+
+  // Cargar video según params de URL
+  const params = getQueryParams();
+  loadVideo(params);
+
+  // Intentar activar AdSense si está configurado
+  initAdsense();
 }
 
 document.addEventListener('DOMContentLoaded', init);
