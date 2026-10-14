@@ -226,6 +226,12 @@ main { padding: 13px 14px 16px; }
   font-weight: 600;
 }
 
+.title-source {
+  margin: 0 0 3px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .details-section label span {
   color: var(--muted);
   font-weight: 400;

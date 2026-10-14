@@ -9,7 +9,6 @@ const refs = {
   previewFrame: document.getElementById('preview-frame'),
   previewMessage: document.getElementById('preview-message'),
   mediaList: document.getElementById('media-list'),
-  shareTitle: document.getElementById('share-title'),
   shareDescription: document.getElementById('share-description'),
   openPlayer: document.getElementById('open-viciograma'),
   notice: document.getElementById('notice'),
@@ -161,7 +160,6 @@ async function scanActiveTab() {
   if (!result?.result) throw new Error('No se pudo analizar el contenido de la pestaña.');
   refs.pageTitle.textContent = result.result.pageTitle || 'Página actual';
   refs.pageDescription.textContent = result.result.pageDescription || activeTab.url;
-  refs.shareTitle.value = result.result.pageTitle || '';
   refs.shareDescription.value = result.result.pageDescription || '';
   renderCandidates(result.result.candidates);
   setScanState('Listo', 'done');
@@ -172,9 +170,9 @@ refs.openPlayer.addEventListener('click', async () => {
   const playerUrl = new URL(PLAYER_URL);
   playerUrl.searchParams.set('v', selectedCandidate.url);
 
-  const title = refs.shareTitle.value.trim();
+  const title = refs.pageTitle.textContent.trim();
   const description = refs.shareDescription.value.trim();
-  if (title) playerUrl.searchParams.set('t', title);
+  if (title && title !== 'Página actual') playerUrl.searchParams.set('t', title);
   if (description) playerUrl.searchParams.set('d', description);
 
   try {

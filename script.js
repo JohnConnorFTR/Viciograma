@@ -260,7 +260,6 @@ const refs = {
   urlGeneratorDialog: $('url-generator-dialog'),
   urlGeneratorForm: $('url-generator-form'),
   generatorSourceUrl: $('generator-source-url'),
-  generatorTitle: $('generator-title'),
   generatorDescription: $('generator-description'),
   generatedPlayerUrl: $('generated-player-url'),
   generatorStatus: $('generator-status'),
@@ -270,10 +269,9 @@ const refs = {
   footerYear:        $('footer-year'),
 };
 
-function buildPlayerUrl(sourceUrl, title, description) {
+function buildPlayerUrl(sourceUrl, description) {
   const playerUrl = new URL(window.location.pathname, window.location.origin);
   playerUrl.searchParams.set('v', sourceUrl);
-  if (title) playerUrl.searchParams.set('t', title);
   if (description) playerUrl.searchParams.set('d', description);
   return playerUrl.href;
 }
@@ -348,7 +346,6 @@ function initUrlGenerator() {
 
     const playerUrl = buildPlayerUrl(
       parsedSourceUrl.href,
-      refs.generatorTitle.value.trim(),
       refs.generatorDescription.value.trim()
     );
     refs.generatedPlayerUrl.value = playerUrl;
