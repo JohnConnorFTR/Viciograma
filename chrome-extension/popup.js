@@ -141,6 +141,7 @@ function renderPreview(candidate) {
   } else if (candidate.kind === 'video') {
     const video = document.createElement('video');
     video.controls = previewRemainingMs > 0;
+    video.controlsList = 'nofullscreen nodownload noremoteplayback';
     video.playsInline = true;
     video.preload = 'metadata';
     video.src = candidate.url;
@@ -162,6 +163,14 @@ function renderPreview(candidate) {
   }
   refs.openPlayer.disabled = false;
 }
+
+document.addEventListener('fullscreenchange', () => {
+  if (refs.previewFrame.contains(document.fullscreenElement)) {
+    document.exitFullscreen().catch((error) => {
+      console.error('No se pudo cerrar la pantalla completa de la vista previa:', error);
+    });
+  }
+});
 
 function renderCandidates(foundCandidates) {
   candidates = foundCandidates;

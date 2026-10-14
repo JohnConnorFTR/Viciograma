@@ -156,6 +156,10 @@ main { padding: 13px 14px 16px; }
   background: #000;
 }
 
+.preview-frame video::-webkit-media-controls-fullscreen-button {
+  display: none;
+}
+
 .preview-frame audio {
   width: calc(100% - 20px);
   height: 42px;
