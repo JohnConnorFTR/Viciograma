@@ -187,12 +187,28 @@ body {
 
 /* ── AD BANNER ── */
 .vg-ad-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  min-height: 122px;
+  padding: 8px 12px 10px;
+  background: var(--vg-surface);
+  border: 1px dashed var(--vg-border);
   border-radius: var(--vg-radius);
   overflow: hidden;
-  min-height: 250px;
+}
+
+.vg-ad-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--vg-muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.vg-ad-banner .adsbygoogle {
+  width: 100%;
+  min-height: 90px;
+  margin: 0 auto;
 }
 
 .vg-ad-placeholder {
