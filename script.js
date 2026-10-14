@@ -154,6 +154,8 @@ const refs = {
   shareStatus:       $('share-status'),
   neutralNotice:     $('neutral-notice'),
   neutralNoticeClose: $('neutral-notice-close'),
+  commentsWrapper:   document.querySelector('.vg-comments-wrapper'),
+  giscusStatus:      $('giscus-status'),
   // Footer
   footerYear:        $('footer-year'),
 };
@@ -176,6 +178,55 @@ function updateShareButtons(pageUrl) {
 
 function setShareStatus(message) {
   if (refs.shareStatus) refs.shareStatus.textContent = message;
+}
+
+async function createGiscusComments(videoUrl) {
+  if (!refs.commentsWrapper || document.querySelector('script[data-giscus-client]')) return;
+
+  const sourceKey = videoUrl || `${window.location.origin}${window.location.pathname}`;
+  try {
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(sourceKey)
+    );
+    const termPrefix = videoUrl ? 'video' : 'page';
+    const term = `${termPrefix}-${Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, '0')
+    ).join('')}`;
+
+    const giscusScript = document.createElement('script');
+    giscusScript.src = 'https://giscus.app/client.js';
+    giscusScript.async = true;
+    giscusScript.crossOrigin = 'anonymous';
+    giscusScript.dataset.giscusClient = 'true';
+    giscusScript.dataset.repo = 'JohnConnorFTR/Viciograma';
+    giscusScript.dataset.repoId = 'R_kgDOVIrUlw';
+    giscusScript.dataset.category = 'General';
+    giscusScript.dataset.categoryId = 'DIC_kwDOVIrUl84DIY94';
+    giscusScript.dataset.mapping = 'specific';
+    giscusScript.dataset.term = term;
+    giscusScript.dataset.strict = '0';
+    giscusScript.dataset.reactionsEnabled = '1';
+    giscusScript.dataset.emitMetadata = '0';
+    giscusScript.dataset.inputPosition = 'bottom';
+    giscusScript.dataset.theme = 'https://johnconnorftr.github.io/Viciograma/giscus-theme.css';
+    giscusScript.dataset.lang = 'es';
+    giscusScript.addEventListener('load', () => {
+      if (refs.giscusStatus) refs.giscusStatus.remove();
+    });
+    giscusScript.addEventListener('error', () => {
+      if (refs.giscusStatus) {
+        refs.giscusStatus.textContent = 'No se pudieron cargar los comentarios. Revisá la conexión e intentá de nuevo.';
+      }
+    });
+
+    refs.commentsWrapper.appendChild(giscusScript);
+  } catch (error) {
+    if (refs.giscusStatus) {
+      refs.giscusStatus.textContent = 'No se pudo preparar la clave de comentarios para este video.';
+    }
+    console.error('No se pudo generar la clave de comentarios de Giscus:', error);
+  }
 }
 
 async function copyPageLink() {
@@ -523,6 +574,7 @@ function init() {
 
   const params = getQueryParams();
   loadVideo(params);
+  createGiscusComments(params.videoUrl);
 }
 
 document.addEventListener('DOMContentLoaded', init);
