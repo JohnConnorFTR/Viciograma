@@ -9,13 +9,12 @@ const refs = {
   previewFrame: document.getElementById('preview-frame'),
   previewMessage: document.getElementById('preview-message'),
   previewLimit: document.getElementById('preview-limit'),
-  mediaList: document.getElementById('media-list'),
   openPlayer: document.getElementById('open-viciograma'),
 };
 
 const PLAYER_URL = 'https://johnconnorftr.github.io/Viciograma/index.html';
 let activeTab;
-let candidates = [];
+let activeCandidate = null;
 let previewRemainingMs = PREVIEW_LIMIT_MS;
 let previewStartedAt = null;
 let previewTimerId = null;
@@ -67,19 +66,6 @@ function getCandidateTitle(candidate) {
 function setScanState(message, state = '') {
   refs.scanState.textContent = message;
   refs.scanState.dataset.state = state;
-}
-
-function displayCandidateName(candidate) {
-  const title = getCandidateTitle(candidate);
-  if (title) return title;
-  if (candidate.label) return candidate.label;
-  try {
-    const url = new URL(candidate.url);
-    const filename = decodeURIComponent(url.pathname.split('/').pop() || '');
-    return filename || url.hostname;
-  } catch {
-    return candidate.url;
-  }
 }
 
 function formatPreviewTime(milliseconds) {
@@ -177,9 +163,6 @@ function renderPreview(candidate) {
     updatePreviewLimit('Vista previa finalizada. El límite de 5 minutos por medio se alcanzó.');
   }
 
-  for (const option of refs.mediaList.querySelectorAll('.media-option')) {
-    option.setAttribute('aria-pressed', String(option.dataset.url === candidate.url));
-  }
   refs.openPlayer.disabled = false;
 }
 
@@ -192,11 +175,10 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 function renderCandidates(foundCandidates) {
-  candidates = foundCandidates;
-  refs.mediaCount.textContent = String(candidates.length);
-  refs.mediaList.replaceChildren();
+  refs.mediaCount.textContent = String(foundCandidates.length);
+  activeCandidate = foundCandidates[0] || null;
 
-  if (candidates.length === 0) {
+  if (!activeCandidate) {
     refs.previewFrame.replaceChildren();
     const message = document.createElement('p');
     message.className = 'empty-preview';
@@ -207,27 +189,7 @@ function renderCandidates(foundCandidates) {
     return;
   }
 
-  candidates.forEach((candidate, index) => {
-    const option = document.createElement('button');
-    option.className = 'media-option';
-    option.type = 'button';
-    option.dataset.url = candidate.url;
-    option.setAttribute('aria-pressed', 'false');
-
-    const kind = document.createElement('span');
-    kind.className = 'media-kind';
-    kind.textContent = candidate.kind;
-
-    const name = document.createElement('span');
-    name.className = 'media-name';
-    name.textContent = displayCandidateName(candidate);
-
-    option.append(kind, name);
-    option.addEventListener('click', () => renderPreview(candidate));
-    refs.mediaList.append(option);
-
-    if (index === 0) renderPreview(candidate);
-  });
+  renderPreview(activeCandidate);
 }
 
 async function scanActiveTab() {
@@ -296,13 +258,11 @@ async function scanActiveTab() {
 }
 
 refs.openPlayer.addEventListener('click', async () => {
-  const selectedOption = refs.mediaList.querySelector('.media-option[aria-pressed="true"]');
-  const candidate = candidates.find((item) => item.url === selectedOption?.dataset.url);
-  if (!candidate) return;
+  if (!activeCandidate) return;
 
   const playerUrl = new URL(PLAYER_URL);
-  playerUrl.searchParams.set('v', candidate.url);
-  const title = getCandidateTitle(candidate);
+  playerUrl.searchParams.set('v', activeCandidate.url);
+  const title = getCandidateTitle(activeCandidate);
   if (title) playerUrl.searchParams.set('t', title);
 
   try {

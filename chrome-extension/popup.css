@@ -180,49 +180,6 @@ main { padding: 13px 14px 16px; }
   text-align: center;
 }
 
-.media-list {
-  display: grid;
-  max-height: 118px;
-  gap: 5px;
-  overflow-y: auto;
-}
-
-.media-option {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--surface);
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.media-option:hover,
-.media-option[aria-pressed="true"] {
-  border-color: #f9731680;
-  background: #f973160c;
-}
-
-.media-kind {
-  flex: 0 0 auto;
-  color: var(--orange);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.media-name {
-  overflow: hidden;
-  color: #c7c7cf;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .primary-button {
   display: flex;
   width: 100%;

@@ -1,6 +1,6 @@
 # Extensión Viciograma para Chrome
 
-La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. Permite previsualizar el primer resultado (sin reproducción automática), elegir otro medio y abrir el seleccionado en Viciograma. El título se toma del nombre del archivo multimedia en la URL, sin su extensión. Cada medio tiene un máximo de cinco minutos efectivos de reproducción en la vista previa; pausar no consume el límite. No hay campos para editar el título o la descripción.
+La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. Permite previsualizar el primer resultado (sin reproducción automática) y abrirlo en Viciograma. El título se toma del nombre del archivo multimedia en la URL, sin su extensión. El popup no muestra una lista de enlaces ni permite editar el título o la descripción. La vista previa tiene un máximo de cinco minutos efectivos; pausar no consume el límite.
 
 ## Cargar para probar
 
