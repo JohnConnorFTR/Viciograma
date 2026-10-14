@@ -149,13 +149,15 @@ async function readEmbeddedVideoTitle(videoUrl) {
 async function applyEmbeddedVideoTitle(videoUrl, fallbackTitle) {
   try {
     const embeddedTitle = await readEmbeddedVideoTitle(videoUrl);
-    if (!embeddedTitle || getQueryParams().videoUrl !== videoUrl) return;
-    if (refs.videoTitle?.textContent !== fallbackTitle) return;
+    if (!embeddedTitle || getQueryParams().videoUrl !== videoUrl) return fallbackTitle;
+    if (refs.videoTitle?.textContent !== fallbackTitle) return refs.videoTitle.textContent;
 
     refs.videoTitle.textContent = embeddedTitle;
     document.title = `${embeddedTitle} — Viciograma`;
+    return embeddedTitle;
   } catch (error) {
     console.info('No se pudo leer el título integrado del video; se conserva el título inferido.', error);
+    return fallbackTitle;
   }
 }
 
@@ -333,19 +335,12 @@ function setShareStatus(message) {
   if (refs.shareStatus) refs.shareStatus.textContent = message;
 }
 
-async function createGiscusComments(videoUrl) {
+async function createGiscusComments(videoTitle) {
   if (!refs.commentsWrapper || document.querySelector('script[data-giscus-client]')) return;
 
-  const sourceKey = videoUrl || `${window.location.origin}${window.location.pathname}`;
   try {
-    const digest = await crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode(sourceKey)
-    );
-    const termPrefix = videoUrl ? 'video' : 'page';
-    const term = `${termPrefix}-${Array.from(new Uint8Array(digest), (byte) =>
-      byte.toString(16).padStart(2, '0')
-    ).join('')}`;
+    const term = videoTitle.trim().normalize('NFC');
+    if (!term) throw new Error('El video no tiene un título para asociar los comentarios.');
 
     const giscusScript = document.createElement('script');
     giscusScript.src = 'https://giscus.app/client.js';
@@ -626,6 +621,7 @@ function loadHLS(url, videoEl) {
    ================================================================ */
 function loadVideo({ videoUrl, title, description }) {
   const canonicalUrl = window.location.href;
+  videoTitleReady = Promise.resolve(title || 'Viciograma – Video Cloud Player');
 
   if (!videoUrl) {
     showPlaceholder();
@@ -641,6 +637,7 @@ function loadVideo({ videoUrl, title, description }) {
     if (descriptionMeta) descriptionMeta.content = pageDescription;
     updateShareButtons(canonicalUrl);
     updateShareButtons(canonicalUrl);
+    videoTitleReady = Promise.resolve(pageTitle);
     return;
   }
 
@@ -652,6 +649,7 @@ function loadVideo({ videoUrl, title, description }) {
   const source = detectSourceType(videoUrl);
   const inferred = inferVideoMetadata(videoUrl, source.type);
   const pageTitle = title || inferred.title;
+  videoTitleReady = Promise.resolve(pageTitle);
   const pageDescription = description || inferred.description;
   updateShareButtons(canonicalUrl);
 
@@ -712,14 +710,16 @@ function loadVideo({ videoUrl, title, description }) {
   updateShareButtons(canonicalUrl);
 
   if (!title && [SOURCE_TYPE.NATIVE_MP4, SOURCE_TYPE.NATIVE_WEBM].includes(source.type)) {
-    applyEmbeddedVideoTitle(videoUrl, pageTitle);
+    videoTitleReady = applyEmbeddedVideoTitle(videoUrl, pageTitle);
   }
 }
 
 /* ================================================================
    INICIALIZACIÓN
    ================================================================ */
-function init() {
+let videoTitleReady = Promise.resolve('Viciograma – Video Cloud Player');
+
+async function init() {
   if (refs.footerYear) refs.footerYear.textContent = new Date().getFullYear();
   initIMA();
   initUrlGenerator();
@@ -732,7 +732,8 @@ function init() {
 
   const params = getQueryParams();
   loadVideo(params);
-  createGiscusComments(params.videoUrl);
+  const commentTitle = await videoTitleReady;
+  await createGiscusComments(commentTitle);
 }
 
 document.addEventListener('DOMContentLoaded', init);
