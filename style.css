@@ -65,17 +65,51 @@ body {
 
 /* ── NOTICE BADGE ── */
 .vg-notice {
+  position: relative;
   background: rgba(249, 115, 22, 0.08);
   border: 1px solid rgba(249, 115, 22, 0.25);
   border-radius: var(--vg-radius);
-  padding: 10px 14px;
+  padding: 10px 42px;
   font-size: 0.82rem;
   color: #c4c4cc;
   line-height: 1.5;
+  text-align: center;
+}
+
+.vg-notice-close {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vg-muted);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.vg-notice-close:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--vg-text);
+}
+
+.vg-notice-close:focus-visible {
+  outline: 2px solid var(--vg-orange);
+  outline-offset: 2px;
 }
 
 .vg-notice i { color: var(--vg-orange); }
 .vg-notice strong { color: var(--vg-orange); }
+
+@media (max-width: 576px) {
+  .vg-notice { padding: 10px 38px 10px 12px; }
+}
 
 /* ── PLAYER WRAPPER ── */
 .vg-player-wrapper {

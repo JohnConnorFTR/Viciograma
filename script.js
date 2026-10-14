@@ -152,6 +152,8 @@ const refs = {
   shareInstagram:    $('share-instagram'),
   shareCopy:         $('share-copy'),
   shareStatus:       $('share-status'),
+  neutralNotice:     $('neutral-notice'),
+  neutralNoticeClose: $('neutral-notice-close'),
   // Footer
   footerYear:        $('footer-year'),
 };
@@ -515,6 +517,9 @@ function init() {
 
   refs.shareCopy.addEventListener('click', copyPageLink);
   refs.shareInstagram.addEventListener('click', shareToInstagramStory);
+  refs.neutralNoticeClose.addEventListener('click', () => {
+    refs.neutralNotice.hidden = true;
+  });
 
   const params = getQueryParams();
   loadVideo(params);

@@ -60,10 +60,15 @@
     <div class="container py-4 vg-main-col">
 
       <!-- BADGE reproductor neutro -->
-      <div class="vg-notice mb-3">
-        <i class="bi bi-shield-check-fill me-1"></i>
-        Reproductor neutro — Viciograma <strong>no almacena, indexa ni transmite</strong> ningún archivo en sus servidores.
-        La responsabilidad del contenido recae exclusivamente en quien comparte el enlace.
+      <div class="vg-notice mb-3" id="neutral-notice">
+        <p class="vg-notice-text mb-0">
+          <i class="bi bi-shield-check-fill me-1"></i>
+          Reproductor neutro — Viciograma <strong>no almacena, indexa ni transmite</strong> ningún archivo en sus servidores.
+          La responsabilidad del contenido recae exclusivamente en quien comparte el enlace.
+        </p>
+        <button class="vg-notice-close" id="neutral-notice-close" type="button" aria-label="Cerrar aviso" title="Cerrar aviso">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
       </div>
 
       <!-- ===== VIDEO PLAYER ===== -->
