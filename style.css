@@ -276,6 +276,10 @@ body {
   outline: none;
 }
 
+#native-player::-webkit-media-controls-download-button {
+  display: none;
+}
+
 #embed-player {
   border: none;
   background: #000;
@@ -307,6 +311,10 @@ body {
   min-width: 0;
   background: #101012;
   text-align: left;
+}
+
+.vg-quick-play-form #quick-play-subtitle-url {
+  flex: 1 1 100%;
 }
 
 .vg-quick-play-form .vg-share-button {

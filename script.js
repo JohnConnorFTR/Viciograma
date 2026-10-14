@@ -152,6 +152,7 @@ function getQueryParams() {
     videoUrl:    sp.get('v')   || sp.get('video') || '',
     title:       (sp.get('t') || sp.get('title') || '').trim(),
     description: (sp.get('d') || sp.get('desc') || sp.get('description') || '').trim(),
+    subtitleUrl: (sp.get('s') || sp.get('subtitles') || '').trim(),
   };
 }
 
@@ -307,6 +308,7 @@ const refs = {
   placeholderDefault: $('placeholder-default'),
   quickPlayForm: $('quick-play-form'),
   quickPlayUrl: $('quick-play-url'),
+  quickPlaySubtitleUrl: $('quick-play-subtitle-url'),
   quickPlayStatus: $('quick-play-status'),
   originLanding:    $('origin-landing'),
   originExtensionGate: $('origin-extension-gate'),
@@ -333,6 +335,7 @@ const refs = {
   urlGeneratorDialog: $('url-generator-dialog'),
   urlGeneratorForm: $('url-generator-form'),
   generatorSourceUrl: $('generator-source-url'),
+  generatorSubtitleUrl: $('generator-subtitle-url'),
   generatorDescription: $('generator-description'),
   generatedPlayerUrl: $('generated-player-url'),
   generatorStatus: $('generator-status'),
@@ -342,10 +345,11 @@ const refs = {
   footerYear:        $('footer-year'),
 };
 
-function buildPlayerUrl(sourceUrl, description) {
+function buildPlayerUrl(sourceUrl, description, subtitleUrl = '') {
   const playerUrl = new URL(window.location.pathname, window.location.origin);
   playerUrl.searchParams.set('v', sourceUrl);
   if (description) playerUrl.searchParams.set('d', description);
+  if (subtitleUrl) playerUrl.searchParams.set('s', subtitleUrl);
   return playerUrl.href;
 }
 
@@ -420,6 +424,7 @@ function initUrlGenerator() {
   refs.urlGeneratorForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const sourceUrl = refs.generatorSourceUrl.value.trim();
+    const subtitleValue = refs.generatorSubtitleUrl.value.trim();
     let parsedSourceUrl;
     try {
       parsedSourceUrl = new URL(sourceUrl);
@@ -430,6 +435,22 @@ function initUrlGenerator() {
     }
     refs.generatorSourceUrl.setCustomValidity('');
 
+    let subtitleUrl = '';
+    if (subtitleValue) {
+      try {
+        const parsedSubtitleUrl = new URL(subtitleValue);
+        if (!['http:', 'https:'].includes(parsedSubtitleUrl.protocol)) {
+          throw new Error('protocol');
+        }
+        subtitleUrl = parsedSubtitleUrl.href;
+      } catch {
+        refs.generatorSubtitleUrl.setCustomValidity('Ingresá una URL HTTP o HTTPS válida para el archivo VTT.');
+        refs.generatorSubtitleUrl.reportValidity();
+        return;
+      }
+    }
+    refs.generatorSubtitleUrl.setCustomValidity('');
+
     if (!['http:', 'https:'].includes(parsedSourceUrl.protocol)) {
       refs.generatorSourceUrl.setCustomValidity('Solo se admiten enlaces HTTP o HTTPS.');
       refs.generatorSourceUrl.reportValidity();
@@ -438,7 +459,8 @@ function initUrlGenerator() {
 
     const playerUrl = buildPlayerUrl(
       parsedSourceUrl.href,
-      refs.generatorDescription.value.trim()
+      refs.generatorDescription.value.trim(),
+      subtitleUrl
     );
     refs.generatedPlayerUrl.value = playerUrl;
     refs.copyGeneratedUrl.disabled = false;
@@ -459,6 +481,7 @@ function initQuickPlay() {
   refs.quickPlayForm.addEventListener('submit', (event) => {
     event.preventDefault();
     refs.quickPlayUrl.setCustomValidity('');
+    refs.quickPlaySubtitleUrl?.setCustomValidity('');
 
     let sourceUrl;
     try {
@@ -475,8 +498,24 @@ function initQuickPlay() {
       return;
     }
 
+    let subtitleUrl = '';
+    const subtitleValue = refs.quickPlaySubtitleUrl?.value.trim() || '';
+    if (subtitleValue) {
+      try {
+        const parsedSubtitleUrl = new URL(subtitleValue);
+        if (!['http:', 'https:'].includes(parsedSubtitleUrl.protocol)) {
+          throw new Error('protocol');
+        }
+        subtitleUrl = parsedSubtitleUrl.href;
+      } catch {
+        refs.quickPlaySubtitleUrl.setCustomValidity('Ingresá una URL HTTP o HTTPS válida para el archivo VTT.');
+        refs.quickPlaySubtitleUrl.reportValidity();
+        return;
+      }
+    }
+
     if (refs.quickPlayStatus) refs.quickPlayStatus.textContent = 'Abriendo el reproductor…';
-    window.location.assign(buildPlayerUrl(sourceUrl.href, ''));
+    window.location.assign(buildPlayerUrl(sourceUrl.href, '', subtitleUrl));
   });
 }
 
@@ -847,10 +886,28 @@ function loadHLS(url, videoEl) {
   }
 }
 
+function setExternalSubtitle(videoEl, subtitleUrl) {
+  videoEl.querySelectorAll('track[data-viciograma-subtitle]').forEach((track) => track.remove());
+  if (!subtitleUrl) return;
+
+  const track = document.createElement('track');
+  track.kind = 'subtitles';
+  track.label = 'Español';
+  track.srclang = 'es';
+  track.src = subtitleUrl;
+  track.default = true;
+  track.dataset.viciogramaSubtitle = 'true';
+  track.addEventListener('error', () => {
+    console.error('No se pudo cargar el archivo de subtítulos. Verificá que sea WebVTT y permita CORS.');
+  });
+  videoEl.append(track);
+  track.track.mode = 'showing';
+}
+
 /* ================================================================
    FUNCIÓN PRINCIPAL: CARGAR VIDEO
    ================================================================ */
-function loadVideo({ videoUrl, title, description }) {
+function loadVideo({ videoUrl, title, description, subtitleUrl }) {
   const canonicalUrl = window.location.href;
   videoTitleReady = Promise.resolve(title || 'Viciograma – Video Cloud Player');
 
@@ -904,6 +961,7 @@ function loadVideo({ videoUrl, title, description }) {
     }
 
     case SOURCE_TYPE.HLS: {
+      setExternalSubtitle(refs.nativePlayer, subtitleUrl);
       showNativePlayer();
       loadHLS(videoUrl, refs.nativePlayer);
       setInfoBox(pageTitle, pageDescription, [
@@ -914,6 +972,7 @@ function loadVideo({ videoUrl, title, description }) {
     }
 
     case SOURCE_TYPE.NATIVE_WEBM: {
+      setExternalSubtitle(refs.nativePlayer, subtitleUrl);
       refs.nativePlayer.src = videoUrl;
       refs.nativePlayer.load();
       showNativePlayer();
@@ -927,6 +986,7 @@ function loadVideo({ videoUrl, title, description }) {
     }
 
     default: { // MP4 y otros nativos
+      setExternalSubtitle(refs.nativePlayer, subtitleUrl);
       refs.nativePlayer.src = videoUrl;
       refs.nativePlayer.load();
       showNativePlayer();
@@ -964,6 +1024,7 @@ async function init() {
 
   refs.shareCopy.addEventListener('click', copyPageLink);
   refs.shareInstagram.addEventListener('click', shareToInstagramStory);
+  refs.nativePlayer.addEventListener('contextmenu', (event) => event.preventDefault());
   refs.neutralNoticeClose.addEventListener('click', () => {
     refs.neutralNotice.hidden = true;
   });

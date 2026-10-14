@@ -79,6 +79,10 @@
         usá la extensión Viciograma para buscar enlaces multimedia publicados por esa página.
       </p>
 
+      <label class="vg-generator-label" for="generator-subtitle-url">Subtítulos <span>(URL de archivo WebVTT .vtt, opcional; el servidor debe permitir CORS)</span></label>
+      <input class="vg-generator-input" id="generator-subtitle-url" name="subtitleUrl" type="url"
+             placeholder="https://.../subtitulos.vtt" autocomplete="url" />
+
       <label class="vg-generator-label" for="generator-description">Descripción <span>(opcional)</span></label>
       <textarea class="vg-generator-input vg-generator-textarea" id="generator-description"
                 name="description" rows="3" maxlength="500"></textarea>
@@ -123,7 +127,7 @@
       <div class="vg-player-wrapper mb-3" id="player-wrapper">
         <!-- Player nativo (MP4 / WebM / HLS) -->
         <div class="ratio ratio-16x9 vg-ratio d-none" id="native-player-container">
-          <video id="native-player" class="w-100 h-100" controls playsinline
+          <video id="native-player" class="w-100 h-100" controls controlslist="nodownload" playsinline
                  crossorigin="anonymous" preload="metadata">
             Tu navegador no soporta la reproducción de video HTML5.
           </video>
@@ -147,6 +151,9 @@
               <label class="visually-hidden" for="quick-play-url">URL del audio o video</label>
               <input class="vg-generator-input" id="quick-play-url" type="url"
                      placeholder="https://…/video.mp4" required autocomplete="url" />
+              <label class="visually-hidden" for="quick-play-subtitle-url">URL del archivo de subtítulos VTT (opcional)</label>
+              <input class="vg-generator-input" id="quick-play-subtitle-url" type="url"
+                     placeholder="https://…/subtitulos.vtt (opcional)" autocomplete="url" />
               <button class="vg-share-button vg-generator-primary" type="submit">
                 <i class="bi bi-play-fill" aria-hidden="true"></i><span>Reproducir</span>
               </button>
