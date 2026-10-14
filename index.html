@@ -141,13 +141,31 @@
         </div>
         <!-- Placeholder cuando no hay video -->
         <div class="vg-player-placeholder d-flex flex-column align-items-center justify-content-center" id="player-placeholder">
-          <i class="bi bi-play-circle vg-placeholder-icon"></i>
-          <p class="mt-3 mb-1 fs-5 fw-semibold">Ningún video cargado</p>
-          <p class="text-muted small">
-            Usá <code>?v=URL_DEL_VIDEO&amp;t=TITULO&amp;d=DESCRIPCION</code>.
-            Si omitís el título, se intenta leer de los metadatos del archivo y, si no están disponibles,
-            se infiere del enlace. La lectura depende de que el servidor remoto permita acceso desde el navegador.
-          </p>
+          <div id="placeholder-default">
+            <i class="bi bi-play-circle vg-placeholder-icon"></i>
+            <p class="mt-3 mb-1 fs-5 fw-semibold">Ningún video cargado</p>
+            <p class="text-muted small">
+              Usá <code>?v=URL_DEL_VIDEO&amp;t=TITULO&amp;d=DESCRIPCION</code>.
+              Si omitís el título, se intenta leer de los metadatos del archivo y, si no están disponibles,
+              se infiere del enlace. La lectura depende de que el servidor remoto permita acceso desde el navegador.
+            </p>
+          </div>
+          <div class="vg-origin-landing" id="origin-landing" hidden>
+            <i class="bi bi-box-arrow-up-right vg-origin-icon" aria-hidden="true"></i>
+            <h2>El contenido está en un sitio externo</h2>
+            <p id="origin-landing-description">
+              Abrí el enlace de origen en una pestaña nueva para continuar.
+            </p>
+            <a class="vg-share-button vg-origin-button" id="origin-open-link"
+               target="_blank" rel="noopener noreferrer">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span>Abrir página de origen</span>
+            </a>
+            <p class="vg-origin-note">
+              Este enlace lleva a una página, no a un archivo multimedia directo.
+              Viciograma no extrae archivos desde páginas externas.
+            </p>
+          </div>
         </div>
       </div>
 

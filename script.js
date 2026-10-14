@@ -191,6 +191,10 @@ const refs = {
   nativeContainer:  $('native-player-container'),
   embedContainer:   $('embed-player-container'),
   placeholder:      $('player-placeholder'),
+  placeholderDefault: $('placeholder-default'),
+  originLanding:    $('origin-landing'),
+  originLandingDescription: $('origin-landing-description'),
+  originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
   imaAdContainer:   $('ima-ad-container'),
   embedPlayer:      $('embed-player'),
@@ -236,6 +240,23 @@ function isDirectMediaUrl(rawUrl) {
       || parsed.hostname === 'youtu.be'
       || parsed.hostname === 'youtube.com'
       || parsed.hostname.endsWith('.youtube.com');
+  } catch {
+    return false;
+  }
+}
+
+function isCloudStoragePageUrl(rawUrl) {
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    return hostname === 'mediafire.com'
+      || hostname === 'www.mediafire.com'
+      || (hostname.endsWith('.mediafire.com') && !/^download\d*\./.test(hostname))
+      || hostname === 'drive.google.com'
+      || hostname === 'dropbox.com'
+      || hostname.endsWith('.dropbox.com')
+      || hostname === '1drv.ms'
+      || hostname === 'onedrive.live.com'
+      || hostname.endsWith('.sharepoint.com');
   } catch {
     return false;
   }
@@ -307,10 +328,10 @@ function initUrlGenerator() {
     refs.openGeneratedUrl.href = playerUrl;
     refs.openGeneratedUrl.hidden = false;
 
-    if (isDirectMediaUrl(parsedSourceUrl.href)) {
+    if (isDirectMediaUrl(parsedSourceUrl.href) && !isCloudStoragePageUrl(parsedSourceUrl.href)) {
       setGeneratorStatus('Enlace generado. Si el servidor permite reproducir este formato, el video abrirá en Viciograma.', 'success');
     } else {
-      setGeneratorStatus('Enlace generado, pero parece ser una página de almacenamiento, no un archivo reproducible directo. Hace falta la extensión para localizar el video; todavía no está disponible.', 'warning');
+      setGeneratorStatus('Enlace generado. Viciograma mostrará un botón para abrir la página original en otra pestaña; la extensión podrá analizarla cuando esté instalada.', 'warning');
     }
   });
 }
@@ -556,11 +577,48 @@ function showEmbedPlayer() {
 function showPlaceholder() {
   refs.placeholder.classList.remove('d-none');
   refs.placeholder.classList.add('d-flex');
+  if (refs.placeholderDefault) refs.placeholderDefault.hidden = false;
+  if (refs.originLanding) refs.originLanding.hidden = true;
   refs.nativeContainer.classList.add('d-none');
   refs.embedContainer.classList.add('d-none');
   // Limpiar src del embed para no dejar iframes colgados
   if (refs.embedPlayer) refs.embedPlayer.src = 'about:blank';
   if (refs.nativePlayer) refs.nativePlayer.removeAttribute('src');
+}
+
+function showOriginLanding(rawUrl, title, description) {
+  let sourceUrl;
+  try {
+    sourceUrl = new URL(rawUrl);
+  } catch {
+    showError('El enlace de origen no es válido.');
+    return;
+  }
+
+  if (!['http:', 'https:'].includes(sourceUrl.protocol)) {
+    showError('Solo se pueden abrir enlaces HTTP o HTTPS.');
+    return;
+  }
+
+  showPlaceholder();
+  refs.placeholderDefault.hidden = true;
+  refs.originLanding.hidden = false;
+  refs.originOpenLink.href = sourceUrl.href;
+  refs.originLandingDescription.textContent = description
+    || `Abrí ${sourceUrl.hostname} en una pestaña nueva para ver el contenido en su sitio de origen.`;
+
+  const landingTitle = title || `Abrir contenido en ${sourceUrl.hostname}`;
+  setInfoBox(landingTitle, description || `Enlace externo alojado en ${sourceUrl.hostname}.`, [
+    { icon: 'bi-box-arrow-up-right', text: 'Enlace externo' },
+    { icon: 'bi-globe2', text: sourceUrl.hostname },
+  ]);
+  document.title = `${landingTitle} — Viciograma`;
+  const descriptionMeta = document.querySelector('meta[name="description"]');
+  if (descriptionMeta) {
+    descriptionMeta.content = description || `Abrí el enlace externo de ${sourceUrl.hostname} en una pestaña nueva.`;
+  }
+  updateShareButtons(window.location.href);
+  return landingTitle;
 }
 
 function showError(message) {
@@ -652,6 +710,12 @@ function loadVideo({ videoUrl, title, description }) {
   videoTitleReady = Promise.resolve(pageTitle);
   const pageDescription = description || inferred.description;
   updateShareButtons(canonicalUrl);
+
+  if (isCloudStoragePageUrl(videoUrl) || !isDirectMediaUrl(videoUrl)) {
+    const landingTitle = showOriginLanding(videoUrl, title, description);
+    videoTitleReady = Promise.resolve(landingTitle || pageTitle);
+    return;
+  }
 
   switch (source.type) {
 
