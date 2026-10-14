@@ -1,0 +1,360 @@
+/* ============================================================
+   VICIOGRAMA — style.css
+   Paleta: Oscuro #0d0d0f | Naranja #f97316 | Dorado #f59e0b
+   Fuente: sistema UI
+   ============================================================ */
+
+/* ── Variables ── */
+:root {
+  --vg-bg:        #0d0d0f;
+  --vg-surface:   #161618;
+  --vg-border:    #2a2a2e;
+  --vg-orange:    #f97316;
+  --vg-gold:      #f59e0b;
+  --vg-red:       #c0392b;
+  --vg-text:      #e8e8ec;
+  --vg-muted:     #7a7a85;
+  --vg-radius:    10px;
+  --vg-glow:      0 0 18px rgba(249, 115, 22, 0.35);
+  --vg-col-max:   860px;
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  background: var(--vg-bg);
+  color: var(--vg-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── NAVBAR ── */
+.vg-navbar {
+  background: linear-gradient(180deg, #0a0a0c 0%, #111113 100%);
+  border-bottom: 1px solid var(--vg-border);
+  padding: 6px 0;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+}
+
+/* Logo: aplica el filtro SVG de chroma-key que elimina el fondo verde puro */
+.vg-logo {
+  height: 64px;
+  width: auto;
+  /* Referencia al filtro SVG definido en index.html que elimina #00ff00 */
+  filter: url(#chroma-green) saturate(1.3) contrast(1.05);
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.vg-brand:hover .vg-logo {
+  filter: url(#chroma-green) saturate(1.6) contrast(1.1) drop-shadow(0 0 8px rgba(249,115,22,0.6));
+  transform: scale(1.03);
+}
+
+.vg-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* ── COLUMNA CENTRAL ── */
+.vg-main-col {
+  max-width: var(--vg-col-max);
+}
+
+/* ── NOTICE BADGE ── */
+.vg-notice {
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: var(--vg-radius);
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: #c4c4cc;
+  line-height: 1.5;
+}
+
+.vg-notice i { color: var(--vg-orange); }
+.vg-notice strong { color: var(--vg-orange); }
+
+/* ── PLAYER WRAPPER ── */
+.vg-player-wrapper {
+  background: #000;
+  border-radius: var(--vg-radius);
+  overflow: hidden;
+  box-shadow: 0 4px 40px rgba(0,0,0,0.7), 0 0 0 1px var(--vg-border);
+  position: relative;
+}
+
+.vg-ratio {
+  border-radius: var(--vg-radius);
+  overflow: hidden;
+}
+
+#native-player {
+  background: #000;
+  border-radius: var(--vg-radius);
+  outline: none;
+}
+
+#embed-player {
+  border: none;
+  background: #000;
+}
+
+/* Placeholder (cuando no hay video) */
+.vg-player-placeholder {
+  aspect-ratio: 16 / 9;
+  background: radial-gradient(ellipse at center, #1a1a20 0%, #0d0d0f 100%);
+  color: var(--vg-muted);
+  text-align: center;
+  padding: 2rem;
+}
+
+.vg-placeholder-icon {
+  font-size: 4rem;
+  color: var(--vg-border);
+}
+
+/* ── INFO BOX ── */
+.vg-info-box {
+  background: var(--vg-surface);
+  border: 1px solid var(--vg-border);
+  border-radius: var(--vg-radius);
+  padding: 18px 20px;
+}
+
+.vg-video-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--vg-text);
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+
+.vg-video-desc {
+  font-size: 0.875rem;
+  color: var(--vg-muted);
+  margin-bottom: 0;
+}
+
+.vg-video-desc code {
+  background: rgba(249,115,22,0.12);
+  color: var(--vg-orange);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+
+.vg-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.vg-meta-badge {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--vg-border);
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  color: var(--vg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vg-meta-badge i { color: var(--vg-orange); }
+
+/* ── AD BANNER ── */
+.vg-ad-banner {
+  border-radius: var(--vg-radius);
+  overflow: hidden;
+  min-height: 90px;
+}
+
+.vg-ad-placeholder {
+  background: var(--vg-surface);
+  border: 1px dashed var(--vg-border);
+  border-radius: var(--vg-radius);
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── SOCIAL BAR (Like · Share · Save) ── */
+.vg-social-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vg-border);
+}
+
+.vg-social-fallback {
+  color: var(--vg-muted);
+}
+
+/* ── COMMENTS SECTION ── */
+.vg-comments-section {
+  background: var(--vg-surface);
+  border: 1px solid var(--vg-border);
+  border-radius: var(--vg-radius);
+  padding: 20px;
+}
+
+.vg-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--vg-text);
+  margin-bottom: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vg-border);
+  display: flex;
+  align-items: center;
+}
+
+.vg-section-title i { color: var(--vg-orange); }
+
+.vg-fb-wrapper {
+  min-height: 60px;
+  overflow: hidden;
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+/* Aviso que se muestra mientras FB_APP_ID no está configurado */
+.vg-fb-pending {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(24, 119, 242, 0.08);
+  border: 1px solid rgba(24, 119, 242, 0.25);
+  border-radius: var(--vg-radius);
+  padding: 14px 16px;
+  color: #8ab4f8;
+  font-size: 0.875rem;
+}
+
+.vg-fb-pending i { color: #1877f2; flex-shrink: 0; margin-top: 2px; }
+.vg-fb-pending code {
+  background: rgba(255,255,255,0.07);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.8em;
+  color: #aac8ff;
+}
+
+/* Forzamos ancho al widget de Facebook */
+.fb-comments,
+.fb-comments iframe,
+.fb-comments span {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* ── FOOTER ── */
+.vg-footer {
+  background: #090909;
+  border-top: 1px solid var(--vg-border);
+  padding: 20px 16px;
+}
+
+.vg-footer-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-bottom: 8px;
+}
+
+.vg-footer-links a {
+  color: var(--vg-muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: color 0.2s;
+}
+
+.vg-footer-links a:hover {
+  color: var(--vg-orange);
+}
+
+/* ── ERROR / BLOCKED MESSAGE ── */
+.vg-error-msg {
+  background: rgba(192, 57, 43, 0.12);
+  border: 1px solid rgba(192, 57, 43, 0.4);
+  border-radius: var(--vg-radius);
+  padding: 16px 20px;
+  color: #f08080;
+  font-size: 0.875rem;
+}
+
+.vg-error-msg i { font-size: 1.4rem; color: var(--vg-red); }
+
+/* ── LOADING SPINNER ── */
+.vg-spinner {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: var(--vg-radius);
+}
+
+.vg-spinner.active { display: flex; }
+
+.vg-spinner-ring {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(249,115,22,0.2);
+  border-top-color: var(--vg-orange);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 576px) {
+  .vg-logo { height: 48px; }
+  .vg-info-box { padding: 14px; }
+  .vg-comments-section { padding: 14px; }
+  .vg-video-title { font-size: 1.05rem; }
+}
+
+/* ── SCROLLBAR (Webkit) ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--vg-bg); }
+::-webkit-scrollbar-thumb { background: var(--vg-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--vg-orange); }
+
+/* ── SELECTION ── */
+::selection {
+  background: rgba(249,115,22,0.3);
+  color: var(--vg-text);
+}
+
+/* ── LEGAL PAGES ── */
+.vg-legal-content {
+  max-width: var(--vg-col-max);
+  background: var(--vg-surface);
+  border: 1px solid var(--vg-border);
+  border-radius: var(--vg-radius);
+  padding: 32px 36px;
+  margin: 0 auto;
+}
+
+.vg-legal-content h1 { color: var(--vg-orange); font-size: 1.6rem; margin-bottom: 6px; }
+.vg-legal-content h2 { color: var(--vg-gold); font-size: 1.1rem; margin-top: 24px; margin-bottom: 8px; }
+.vg-legal-content p, .vg-legal-content li { color: #c4c4cc; font-size: 0.9rem; line-height: 1.7; }
+.vg-legal-content a { color: var(--vg-orange); }
+.vg-legal-content .vg-last-updated { color: var(--vg-muted); font-size: 0.78rem; }
+
+@media (max-width: 576px) {
+  .vg-legal-content { padding: 20px 16px; }
+}

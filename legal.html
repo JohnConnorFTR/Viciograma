@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aviso Legal – Viciograma</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+  <!-- SVG Chroma-Key filter -->
+  <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
+    <defs>
+      <filter id="chroma-green" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+        <feColorMatrix type="matrix"
+          values="1  0  0  0  0
+                  0  1  0  0  0
+                  0  0  1  0  0
+                  1 -2  1  0  1" />
+      </filter>
+    </defs>
+  </svg>
+
+  <header>
+    <nav class="navbar navbar-dark vg-navbar">
+      <div class="container-fluid px-3">
+        <a class="navbar-brand vg-brand" href="index.html">
+          <img src="LOGO.png" alt="Viciograma" class="vg-logo" />
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="flex-grow-1 container py-5">
+    <div class="vg-legal-content">
+      <h1><i class="bi bi-file-earmark-text-fill me-2"></i>Aviso Legal</h1>
+      <p class="vg-last-updated">Última actualización: Octubre 2026</p>
+
+      <h2>1. Identificación del Servicio</h2>
+      <p><strong>Viciograma</strong> (en adelante "el Servicio") es una aplicación web de naturaleza completamente estática que funciona como reproductor neutro de enlaces remotos de video. El Servicio no posee infraestructura de servidores propios para el almacenamiento, indexación o transmisión de contenido audiovisual.</p>
+
+      <h2>2. Naturaleza del Reproductor Neutro</h2>
+      <p>Viciograma actúa exclusivamente como un cliente web (front-end) que interpreta y reproduce URLs de video proporcionadas directamente por el usuario a través de parámetros en la URL. El Servicio:</p>
+      <ul>
+        <li><strong>No almacena</strong> ningún archivo de video, audio o imagen en sus servidores.</li>
+        <li><strong>No indexa</strong> contenido de terceros ni mantiene catálogos de links.</li>
+        <li><strong>No transmite</strong> contenido propio: toda transmisión ocurre directamente desde el servidor de origen indicado por el usuario hasta su navegador.</li>
+        <li><strong>No realiza caché</strong> de contenido de terceros en sus sistemas.</li>
+      </ul>
+
+      <h2>3. Responsabilidad sobre el Contenido</h2>
+      <p>La responsabilidad jurídica sobre el contenido reproducido recae de manera exclusiva e integral sobre la persona física o jurídica que genera, comparte o distribuye el enlace de video. El operador de Viciograma no asume ningún tipo de responsabilidad civil, penal o administrativa derivada de contenidos a los que el Servicio pueda proporcionar acceso técnico indirecto.</p>
+
+      <h2>4. Legislación Aplicable</h2>
+      <p>Las presentes condiciones se rigen por la legislación vigente en materia de servicios de la sociedad de la información. En caso de litigio, las partes se someten a los tribunales competentes del domicilio del operador del Servicio.</p>
+
+      <p class="mt-4"><a href="index.html">← Volver al reproductor</a></p>
+    </div>
+  </main>
+
+  <footer class="vg-footer">
+    <div class="container text-center">
+      <nav class="vg-footer-links mb-1">
+        <a href="legal.html">Aviso Legal</a>
+        <a href="privacy.html">Privacidad</a>
+        <a href="dmca.html">DMCA</a>
+        <a href="terms.html">Términos</a>
+      </nav>
+      <small class="text-muted">&copy; <script>document.write(new Date().getFullYear())</script> Viciograma</small>
+    </div>
+  </footer>
+</body>
+</html>

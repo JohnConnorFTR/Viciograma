@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DMCA – Viciograma</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+  <!-- SVG Chroma-Key filter -->
+  <svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
+    <defs>
+      <filter id="chroma-green" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+        <feColorMatrix type="matrix"
+          values="1  0  0  0  0
+                  0  1  0  0  0
+                  0  0  1  0  0
+                  1 -2  1  0  1" />
+      </filter>
+    </defs>
+  </svg>
+
+  <header>
+    <nav class="navbar navbar-dark vg-navbar">
+      <div class="container-fluid px-3">
+        <a class="navbar-brand vg-brand" href="index.html">
+          <img src="LOGO.png" alt="Viciograma" class="vg-logo" />
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="flex-grow-1 container py-5">
+    <div class="vg-legal-content">
+      <h1><i class="bi bi-shield-exclamation me-2"></i>Política DMCA</h1>
+      <p class="vg-last-updated">Última actualización: Octubre 2026</p>
+
+      <h2>Declaración de Posición</h2>
+      <p>Viciograma es un <strong>reproductor neutro de contenido remoto</strong>. No almacena, sube, indexa ni distribuye archivos de video en sus propios servidores. Todos los contenidos reproducidos son enlazados directamente desde servidores de terceros y son responsabilidad exclusiva del usuario que proporciona el enlace.</p>
+      <p>No obstante, Viciograma respeta los derechos de propiedad intelectual y coopera con los titulares de derechos conforme a la <strong>Ley de Derechos de Autor del Milenio Digital (DMCA, 17 U.S.C. § 512)</strong> y la normativa internacional aplicable.</p>
+
+      <h2>Notificación de Infracción (Takedown Notice)</h2>
+      <p>Si crees que algún contenido accesible a través de Viciograma infringe tus derechos de autor, envía una notificación por escrito con los siguientes elementos:</p>
+      <ol>
+        <li><strong>Identificación de la obra protegida</strong> que se alega infringida.</li>
+        <li><strong>URL exacta</strong> a través de la cual se está reproduciendo el contenido en Viciograma (ej. <code>https://viciograma.com/index.html?v=URL_DEL_VIDEO</code>).</li>
+        <li><strong>Declaración de buena fe</strong> de que el uso no está autorizado por el titular, su agente o la ley.</li>
+        <li><strong>Declaración de veracidad</strong> bajo pena de perjurio de que la información es correcta y que el notificante está autorizado para actuar.</li>
+        <li><strong>Nombre, dirección, teléfono y correo electrónico</strong> del notificante.</li>
+        <li><strong>Firma electrónica o física</strong> del titular o representante autorizado.</li>
+      </ol>
+
+      <h2>Envío de la Notificación</h2>
+      <p>Envía tu notificación DMCA al siguiente correo de contacto:</p>
+      <p>
+        📧 <strong>dmca@viciograma.com</strong>
+        <br /><small class="text-muted">(Reemplaza con tu correo real antes de publicar)</small>
+      </p>
+      <p>Responderemos en un plazo razonable, y en caso de que la URL apunte efectivamente a contenido de nuestros sistemas (lo cual no aplica dado nuestro modelo como reproductor neutro), procederemos en consecuencia.</p>
+
+      <h2>Acción Preventiva</h2>
+      <p>Viciograma puede incluir, a su discreción, listas negras de dominios bloqueados en su código client-side como medida preventiva adicional.</p>
+
+      <p class="mt-4"><a href="index.html">← Volver al reproductor</a></p>
+    </div>
+  </main>
+
+  <footer class="vg-footer">
+    <div class="container text-center">
+      <nav class="vg-footer-links mb-1">
+        <a href="legal.html">Aviso Legal</a>
+        <a href="privacy.html">Privacidad</a>
+        <a href="dmca.html">DMCA</a>
+        <a href="terms.html">Términos</a>
+      </nav>
+      <small class="text-muted">&copy; <script>document.write(new Date().getFullYear())</script> Viciograma</small>
+    </div>
+  </footer>
+</body>
+</html>
