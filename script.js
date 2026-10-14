@@ -309,6 +309,8 @@ const refs = {
   quickPlayUrl: $('quick-play-url'),
   quickPlayStatus: $('quick-play-status'),
   originLanding:    $('origin-landing'),
+  originExtensionGate: $('origin-extension-gate'),
+  originContinue: $('origin-continue'),
   originTitleStatus: $('origin-title-status'),
   originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
@@ -734,6 +736,8 @@ async function showOriginLanding(rawUrl, title, description) {
   showPlaceholder();
   refs.placeholderDefault.hidden = true;
   refs.originLanding.hidden = false;
+  refs.originExtensionGate.hidden = false;
+  refs.originOpenLink.hidden = true;
   refs.originOpenLink.href = sourceUrl.href;
   refs.originTitleStatus.textContent = title
     ? ''
@@ -951,6 +955,10 @@ async function init() {
   refs.shareInstagram.addEventListener('click', shareToInstagramStory);
   refs.neutralNoticeClose.addEventListener('click', () => {
     refs.neutralNotice.hidden = true;
+  });
+  refs.originContinue.addEventListener('click', () => {
+    refs.originExtensionGate.hidden = true;
+    refs.originOpenLink.hidden = false;
   });
 
   const params = getQueryParams();

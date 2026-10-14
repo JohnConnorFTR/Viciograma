@@ -357,6 +357,14 @@ body {
   font-size: 0.9rem;
 }
 
+.vg-origin-extension-gate[hidden] { display: none; }
+
+.vg-origin-extension-gate p {
+  margin: 0;
+  color: var(--vg-muted);
+  font-size: 0.9rem;
+}
+
 .vg-origin-button {
   width: fit-content;
   margin: 12px auto 16px;
@@ -365,6 +373,13 @@ body {
 }
 
 .vg-origin-button i { color: var(--vg-orange); }
+
+.vg-origin-continue {
+  width: fit-content;
+  margin: 0 auto 16px;
+  border-color: var(--vg-border);
+  background: rgba(255, 255, 255, 0.04);
+}
 
 .vg-origin-landing .vg-origin-note {
   margin: 0;
