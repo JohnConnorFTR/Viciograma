@@ -206,9 +206,112 @@ const refs = {
   neutralNoticeClose: $('neutral-notice-close'),
   commentsWrapper:   document.querySelector('.vg-comments-wrapper'),
   giscusStatus:      $('giscus-status'),
+  urlGeneratorDialog: $('url-generator-dialog'),
+  urlGeneratorForm: $('url-generator-form'),
+  generatorSourceUrl: $('generator-source-url'),
+  generatorTitle: $('generator-title'),
+  generatorDescription: $('generator-description'),
+  generatedPlayerUrl: $('generated-player-url'),
+  generatorStatus: $('generator-status'),
+  copyGeneratedUrl: $('copy-generated-url'),
+  openGeneratedUrl: $('open-generated-url'),
   // Footer
   footerYear:        $('footer-year'),
 };
+
+function buildPlayerUrl(sourceUrl, title, description) {
+  const playerUrl = new URL(window.location.pathname, window.location.origin);
+  playerUrl.searchParams.set('v', sourceUrl);
+  if (title) playerUrl.searchParams.set('t', title);
+  if (description) playerUrl.searchParams.set('d', description);
+  return playerUrl.href;
+}
+
+function isDirectMediaUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return /\.(mp4|m4v|webm|mov|ogg|ogv|3gp|m3u8)$/i.test(parsed.pathname)
+      || parsed.hostname === 'youtu.be'
+      || parsed.hostname === 'youtube.com'
+      || parsed.hostname.endsWith('.youtube.com');
+  } catch {
+    return false;
+  }
+}
+
+function setGeneratorStatus(message, status = '') {
+  if (!refs.generatorStatus) return;
+  refs.generatorStatus.textContent = message;
+  refs.generatorStatus.dataset.status = status;
+}
+
+async function copyGeneratedPlayerUrl() {
+  const generatedUrl = refs.generatedPlayerUrl?.value;
+  if (!generatedUrl) return;
+
+  try {
+    await navigator.clipboard.writeText(generatedUrl);
+    setGeneratorStatus('Enlace copiado al portapapeles.', 'success');
+  } catch (error) {
+    refs.generatedPlayerUrl.select();
+    const copied = document.execCommand('copy');
+    if (copied) {
+      setGeneratorStatus('Enlace copiado al portapapeles.', 'success');
+    } else {
+      setGeneratorStatus('No se pudo copiar automáticamente. Seleccioná y copiá el enlace.', 'error');
+      console.error('No se pudo copiar la URL generada:', error);
+    }
+  }
+}
+
+function initUrlGenerator() {
+  const openButton = $('open-url-generator');
+  const closeButton = $('close-url-generator');
+  if (!refs.urlGeneratorDialog || !refs.urlGeneratorForm) return;
+
+  openButton?.addEventListener('click', () => {
+    refs.urlGeneratorDialog.showModal();
+    refs.generatorSourceUrl.focus();
+  });
+  closeButton?.addEventListener('click', () => refs.urlGeneratorDialog.close());
+  refs.copyGeneratedUrl?.addEventListener('click', copyGeneratedPlayerUrl);
+
+  refs.urlGeneratorForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const sourceUrl = refs.generatorSourceUrl.value.trim();
+    let parsedSourceUrl;
+    try {
+      parsedSourceUrl = new URL(sourceUrl);
+    } catch {
+      refs.generatorSourceUrl.setCustomValidity('Ingresá una URL válida que comience con https:// o http://.');
+      refs.generatorSourceUrl.reportValidity();
+      return;
+    }
+    refs.generatorSourceUrl.setCustomValidity('');
+
+    if (!['http:', 'https:'].includes(parsedSourceUrl.protocol)) {
+      refs.generatorSourceUrl.setCustomValidity('Solo se admiten enlaces HTTP o HTTPS.');
+      refs.generatorSourceUrl.reportValidity();
+      return;
+    }
+
+    const playerUrl = buildPlayerUrl(
+      parsedSourceUrl.href,
+      refs.generatorTitle.value.trim(),
+      refs.generatorDescription.value.trim()
+    );
+    refs.generatedPlayerUrl.value = playerUrl;
+    refs.copyGeneratedUrl.disabled = false;
+    refs.openGeneratedUrl.href = playerUrl;
+    refs.openGeneratedUrl.hidden = false;
+
+    if (isDirectMediaUrl(parsedSourceUrl.href)) {
+      setGeneratorStatus('Enlace generado. Si el servidor permite reproducir este formato, el video abrirá en Viciograma.', 'success');
+    } else {
+      setGeneratorStatus('Enlace generado, pero parece ser una página de almacenamiento, no un archivo reproducible directo. Hace falta la extensión para localizar el video; todavía no está disponible.', 'warning');
+    }
+  });
+}
 
 function getShareText() {
   const title = refs.videoTitle ? refs.videoTitle.textContent.trim() : '';
@@ -619,6 +722,7 @@ function loadVideo({ videoUrl, title, description }) {
 function init() {
   if (refs.footerYear) refs.footerYear.textContent = new Date().getFullYear();
   initIMA();
+  initUrlGenerator();
 
   refs.shareCopy.addEventListener('click', copyPageLink);
   refs.shareInstagram.addEventListener('click', shareToInstagramStory);
