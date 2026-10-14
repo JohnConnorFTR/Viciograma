@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viciograma</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header class="brand">
+    <span class="brand-mark" aria-hidden="true"><span></span></span>
+    <div>
+      <strong>VICIOGRAMA</strong>
+      <small>VIDEO · CLOUD · PLAYER</small>
+    </div>
+    <span class="scan-state" id="scan-state" role="status" aria-live="polite">Analizando…</span>
+  </header>
+
+  <main>
+    <section class="page-info">
+      <h1 id="page-title">Página actual</h1>
+      <p id="page-description"></p>
+    </section>
+
+    <section class="preview-section" aria-labelledby="preview-title">
+      <div class="section-heading">
+        <h2 id="preview-title">Vista previa</h2>
+        <span id="media-count" class="count-badge">0</span>
+      </div>
+      <div class="preview-frame" id="preview-frame">
+        <p class="empty-preview" id="preview-message">Buscando audio y video en esta página…</p>
+      </div>
+    </section>
+
+    <section class="media-section" aria-labelledby="media-title">
+      <div class="section-heading">
+        <h2 id="media-title">Enlaces detectados</h2>
+      </div>
+      <div class="media-list" id="media-list"></div>
+    </section>
+
+    <section class="details-section">
+      <label for="share-title">Título para Viciograma</label>
+      <input id="share-title" type="text" maxlength="180" autocomplete="off">
+      <label for="share-description">Descripción <span>(opcional)</span></label>
+      <textarea id="share-description" rows="2" maxlength="500"></textarea>
+      <button class="primary-button" id="open-viciograma" type="button" disabled>
+        <span aria-hidden="true">↗</span> Abrir en Viciograma
+      </button>
+      <p class="notice" id="notice" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+</body>
+</html>
