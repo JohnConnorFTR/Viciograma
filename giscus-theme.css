@@ -1,0 +1,85 @@
+main {
+  color-scheme: dark;
+  --color-fg-default: #e8e8ec;
+  --color-fg-muted: #a0a0aa;
+  --color-fg-subtle: #7a7a85;
+  --color-canvas-default: #161618;
+  --color-canvas-overlay: #202024;
+  --color-canvas-inset: #0d0d0f;
+  --color-canvas-subtle: #1b1b1f;
+  --color-border-default: #34343a;
+  --color-border-muted: #2a2a2e;
+  --color-btn-text: #e8e8ec;
+  --color-btn-bg: #202024;
+  --color-btn-border: #34343a;
+  --color-btn-hover-bg: #29292e;
+  --color-btn-hover-border: #f97316;
+  --color-btn-active-bg: #29292e;
+  --color-btn-active-border: #f97316;
+  --color-btn-selected-bg: #29292e;
+  --color-btn-primary-text: #fff;
+  --color-btn-primary-bg: #f97316;
+  --color-btn-primary-border: #f97316;
+  --color-btn-primary-hover-bg: #ea580c;
+  --color-accent-fg: #f97316;
+  --color-accent-emphasis: #ea580c;
+  --color-accent-muted: rgb(249 115 22 / 40%);
+  --color-accent-subtle: rgb(249 115 22 / 12%);
+  --color-social-reaction-bg-hover: #29292e;
+  --color-social-reaction-bg-reacted-hover: #3a2619;
+}
+
+.gsc-reactions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid #2a2a2e;
+  border-radius: 10px;
+  background: #111113;
+}
+
+.gsc-reactions-count {
+  margin: 0;
+  color: #a0a0aa;
+  font-size: 0.85rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gsc-reactions > div {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.gsc-reactions .gsc-reactions-button {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid #34343a;
+  border-radius: 8px;
+  background: #202024;
+}
+
+.gsc-reactions .gsc-reactions-button:hover {
+  border-color: #f97316;
+  background: #29292e;
+}
+
+@media (max-width: 480px) {
+  .gsc-reactions {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .gsc-reactions > div {
+    flex-wrap: wrap;
+  }
+}
