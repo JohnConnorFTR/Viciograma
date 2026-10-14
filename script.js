@@ -92,22 +92,6 @@ function getUrlTitle(rawUrl, includePathSlug = false) {
   return '';
 }
 
-function hasMediaUrlExtension(rawUrl) {
-  try {
-    const url = new URL(rawUrl);
-    const candidates = [
-      ...url.pathname.split('/'),
-      ...url.searchParams.values(),
-      url.href,
-    ];
-    return candidates.some((candidate) =>
-      decodeUrlPart(candidate).split(/[/?#&=]/).some((part) => MEDIA_FILE_EXTENSION.test(part))
-    );
-  } catch {
-    return false;
-  }
-}
-
 /* ================================================================
    DETECCIÓN DE TIPO DE FUENTE
    ================================================================ */
@@ -366,7 +350,15 @@ function buildPlayerUrl(sourceUrl, description) {
 function isDirectMediaUrl(rawUrl) {
   try {
     const parsed = new URL(rawUrl);
-    return hasMediaUrlExtension(rawUrl)
+    const lastPathSegment = decodeUrlPart(parsed.pathname.split('/').filter(Boolean).pop() || '');
+    const hasFileNameQuery = ['file', 'filename'].some((key) =>
+      [...parsed.searchParams.getAll(key)].some((value) =>
+        MEDIA_FILE_EXTENSION.test(decodeUrlPart(value).split('/').pop() || '')
+      )
+    );
+
+    return MEDIA_FILE_EXTENSION.test(lastPathSegment)
+      || hasFileNameQuery
       || parsed.hostname === 'youtu.be'
       || parsed.hostname === 'youtube.com'
       || parsed.hostname.endsWith('.youtube.com');
