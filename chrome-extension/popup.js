@@ -5,6 +5,7 @@ const refs = {
   scanState: document.getElementById('scan-state'),
   pageTitle: document.getElementById('page-title'),
   pageDescription: document.getElementById('page-description'),
+  frameNote: document.getElementById('frame-note'),
   mediaCount: document.getElementById('media-count'),
   previewFrame: document.getElementById('preview-frame'),
   previewMessage: document.getElementById('preview-message'),
@@ -206,7 +207,9 @@ async function scanActiveTab() {
     func: () => {
       const mediaExtension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
       const found = new Map();
-      const getExtension = (value) => {
+      const scannedDocuments = new Set();
+      let inaccessibleFrameCount = 0;
+      const getExtension = (value, baseUrl) => {
         if (typeof value !== 'string' || !value) return '';
         let decoded = value;
         for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -219,7 +222,7 @@ async function scanActiveTab() {
           }
         }
         try {
-          const parsed = new URL(decoded, document.baseURI);
+          const parsed = new URL(decoded, baseUrl);
           const pathExtension = parsed.pathname.split('/').filter(Boolean).pop()
             ?.match(mediaExtension)?.[1]?.toLowerCase();
           if (pathExtension) return pathExtension;
@@ -234,16 +237,16 @@ async function scanActiveTab() {
         }
         return '';
       };
-      const add = (rawUrl, label = '') => {
+      const add = (rawUrl, label = '', baseUrl = document.baseURI) => {
         if (typeof rawUrl !== 'string' || !rawUrl || /^(blob:|data:|javascript:)/i.test(rawUrl)) return;
         let url;
         try {
-          url = new URL(rawUrl, document.baseURI);
+          url = new URL(rawUrl, baseUrl);
         } catch {
           return;
         }
         if (!['http:', 'https:'].includes(url.protocol)) return;
-        const extension = getExtension(url.href);
+        const extension = getExtension(url.href, baseUrl);
         if (!extension) return;
 
         const kind = /^(mp3|m4a|aac|wav|flac|ogg|opus)$/.test(extension)
@@ -254,20 +257,38 @@ async function scanActiveTab() {
         if (!found.has(url.href)) found.set(url.href, { url: url.href, label, kind, extension });
       };
 
-      document.querySelectorAll('video, audio').forEach((media) => {
-        const label = media.getAttribute('title') || media.getAttribute('aria-label') || '';
-        add(media.currentSrc || media.src, label);
-        media.querySelectorAll('source[src]').forEach((source) =>
-          add(source.src, source.getAttribute('title') || label)
-        );
-      });
-      document.querySelectorAll('a[href]').forEach((link) => {
-        const label = link.getAttribute('download') || link.textContent.trim();
-        add(link.href, label);
-      });
-      for (const resource of performance.getEntriesByType('resource')) {
-        add(resource.name);
-      }
+      const scanFrame = (frameWindow) => {
+        let frameDocument;
+        try {
+          frameDocument = frameWindow.document;
+        } catch {
+          inaccessibleFrameCount += 1;
+          return;
+        }
+        if (!frameDocument || scannedDocuments.has(frameDocument)) return;
+        scannedDocuments.add(frameDocument);
+        const baseUrl = frameDocument.baseURI;
+
+        frameDocument.querySelectorAll('video, audio').forEach((media) => {
+          const label = media.getAttribute('title') || media.getAttribute('aria-label') || '';
+          add(media.currentSrc || media.src, label, baseUrl);
+          media.querySelectorAll('source[src]').forEach((source) =>
+            add(source.src, source.getAttribute('title') || label, baseUrl)
+          );
+        });
+        frameDocument.querySelectorAll('a[href]').forEach((link) => {
+          const label = link.getAttribute('download') || link.textContent.trim();
+          add(link.href, label, baseUrl);
+        });
+        for (const resource of frameWindow.performance.getEntriesByType('resource')) {
+          add(resource.name, '', baseUrl);
+        }
+
+        for (let index = 0; index < frameWindow.frames.length; index += 1) {
+          scanFrame(frameWindow.frames[index]);
+        }
+      };
+      scanFrame(window);
 
       const description = document.querySelector('meta[name="description"]')?.content
         || document.querySelector('meta[property="og:description"]')?.content
@@ -276,6 +297,7 @@ async function scanActiveTab() {
         pageTitle: document.title.trim(),
         pageDescription: description.trim(),
         candidates: [...found.values()].slice(0, 30),
+        inaccessibleFrameCount,
       };
     },
   });
@@ -283,6 +305,10 @@ async function scanActiveTab() {
   if (!result?.result) throw new Error('No se pudo analizar el contenido de la pestaña.');
   refs.pageTitle.textContent = result.result.pageTitle || 'Página actual';
   refs.pageDescription.textContent = result.result.pageDescription || activeTab.url;
+  refs.frameNote.hidden = result.result.inaccessibleFrameCount === 0;
+  refs.frameNote.textContent = result.result.inaccessibleFrameCount > 0
+    ? `${result.result.inaccessibleFrameCount} iframe(s) de otro origen no se inspeccionaron.`
+    : '';
   renderCandidates(result.result.candidates);
   setScanState('Listo', 'done');
 }

@@ -1,6 +1,6 @@
 # Extensión Viciograma para Chrome
 
-La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página. Solo acepta URLs cuya ruta final o parámetro de nombre de archivo identifica un formato multimedia; no usa nombres visibles ni tipos MIME para convertir páginas de alojamiento en medios. Permite previsualizar el primer resultado (sin reproducción automática) y abrirlo en Viciograma. El título se toma del nombre del archivo multimedia en la URL, sin la extensión. El popup no muestra una lista de enlaces ni permite editar el título o la descripción. La vista previa tiene un máximo de cinco minutos efectivos; pausar no consume el límite.
+La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre el popup. Busca enlaces directos a audio y video en elementos `<audio>`, `<video>`, `<source>`, enlaces y recursos cargados por la página, incluidos los documentos de iframes del mismo origen. Los iframes de otro origen no se inspeccionan; el popup informa cuántos fueron omitidos. Solo acepta URLs cuya ruta final o parámetro de nombre de archivo identifica un formato multimedia; no usa nombres visibles ni tipos MIME para convertir páginas de alojamiento en medios. Permite previsualizar el primer resultado (sin reproducción automática) y abrirlo en Viciograma. El título se toma del nombre del archivo multimedia en la URL, sin la extensión. El popup no muestra una lista de enlaces ni permite editar el título o la descripción. La vista previa tiene un máximo de cinco minutos efectivos; pausar no consume el límite.
 
 ## Cargar para probar
 
@@ -9,7 +9,7 @@ La extensión Manifest V3 inspecciona la pestaña actual cuando el usuario abre 
 3. Elegí **Cargar descomprimida** y seleccioná esta carpeta `chrome-extension`.
 4. Abrí una página de alojamiento, esperá que cargue y pulsá el icono de Viciograma.
 
-No hace falta configurar permisos de sitios por adelantado. `activeTab` y `scripting` permiten inspeccionar solo la pestaña actual después de que el usuario abre la extensión. No hay escaneo en segundo plano, captura de credenciales, redirecciones automáticas ni reproducción automática.
+No hace falta configurar permisos de sitios por adelantado. `activeTab` y `scripting` permiten inspeccionar solo la pestaña actual después de que el usuario abre la extensión. Solo se inspeccionan páginas que el usuario tiene permiso para revisar. No hay escaneo en segundo plano, captura de credenciales, redirecciones automáticas ni reproducción automática.
 
 ## Formatos y límites
 
@@ -17,4 +17,4 @@ Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `w
 
 Al abrir en Viciograma, el popup genera el enlace del reproductor con el título derivado del nombre de archivo en la URL. Esto permite que el título y la clave de comentarios coincidan entre la página de alojamiento y el enlace directo del medio.
 
-Si no aparecen enlaces, esperá a que la página termine de cargar y abrí de nuevo el popup. Algunas páginas solo revelan la URL después de una interacción, o no la exponen en el DOM.
+Si no aparecen enlaces, esperá a que la página termine de cargar y abrí de nuevo el popup. Algunas páginas solo revelan la URL después de una interacción, no la exponen en el DOM o la muestran dentro de un iframe de otro origen, que no puede inspeccionarse con los permisos actuales.

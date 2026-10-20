@@ -115,6 +115,11 @@ main { padding: 13px 14px 16px; }
   -webkit-line-clamp: 2;
 }
 
+.page-info .frame-note {
+  margin-top: 6px;
+  color: var(--gold);
+}
+
 .section-heading {
   display: flex;
   align-items: center;
