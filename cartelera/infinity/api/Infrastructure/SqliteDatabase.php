@@ -58,10 +58,50 @@ final class SqliteDatabase
                 description TEXT,
                 link_url TEXT NOT NULL,
                 poster_url TEXT,
+                views_count INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )'
+        );
+        $postColumns = $connection->query('PRAGMA table_info(posts)')->fetchAll();
+        if (!in_array('views_count', array_column($postColumns, 'name'), true)) {
+            $connection->exec('ALTER TABLE posts ADD COLUMN views_count INTEGER NOT NULL DEFAULT 0');
+        }
+        $connection->exec(
+            'CREATE TABLE IF NOT EXISTS post_likes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, user_id)
+            )'
+        );
+        $connection->exec(
+            'CREATE TABLE IF NOT EXISTS post_reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+                review TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, user_id)
+            )'
+        );
+        $connection->exec(
+            'CREATE TABLE IF NOT EXISTS post_episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                season_number INTEGER NOT NULL CHECK (season_number >= 1),
+                episode_number INTEGER NOT NULL CHECK (episode_number >= 1),
+                title TEXT,
+                link_url TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, season_number, episode_number)
             )'
         );
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC, id DESC)');
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_posts_type ON posts(type)');
+        $connection->exec('CREATE INDEX IF NOT EXISTS idx_likes_post ON post_likes(post_id)');
+        $connection->exec('CREATE INDEX IF NOT EXISTS idx_reviews_post ON post_reviews(post_id)');
+        $connection->exec('CREATE INDEX IF NOT EXISTS idx_episodes_post ON post_episodes(post_id, season_number, episode_number)');
     }
 }

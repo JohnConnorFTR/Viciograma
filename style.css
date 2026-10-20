@@ -285,6 +285,44 @@ body {
   background: #000;
 }
 
+.vg-avi-transcode-status {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: min(100%, 34rem);
+  padding: 1.5rem;
+  color: var(--vg-text);
+}
+
+.vg-avi-transcode-status[hidden],
+.vg-avi-transcode-status progress[hidden] {
+  display: none;
+}
+
+.vg-avi-transcode-status p,
+.vg-avi-transcode-status small {
+  margin: 0;
+}
+
+.vg-avi-transcode-status small {
+  color: var(--vg-muted);
+}
+
+.vg-avi-transcode-status progress {
+  width: min(100%, 24rem);
+  accent-color: var(--vg-orange);
+}
+
+.vg-avi-transcode-icon {
+  color: var(--vg-orange);
+  font-size: 2rem;
+  animation: vg-avi-spin 1.2s linear infinite;
+}
+
+@keyframes vg-avi-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Placeholder (cuando no hay video) */
 .vg-player-placeholder {
   aspect-ratio: 16 / 9;

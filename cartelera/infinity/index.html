@@ -15,6 +15,13 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
+      <defs>
+        <filter id="chroma-green" color-interpolation-filters="sRGB" x="0%" y="0%" width="100%" height="100%">
+          <feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 2 -2 2 0 1" />
+        </filter>
+      </defs>
+    </svg>
     <div class="app-shell">
       <header class="topbar navbar navbar-expand-lg">
         <div class="container-fluid px-3 px-md-4 px-xl-5">
@@ -27,6 +34,9 @@
           <div class="topbar-actions d-flex align-items-center gap-2">
             <button id="btn-login" class="button button-quiet btn" type="button">Ingresar</button>
             <button id="btn-register" class="button button-primary btn" type="button">Crear cuenta</button>
+            <button id="btn-profile" class="button button-quiet btn hidden" type="button">
+              <i class="bi bi-person-circle"></i> Perfil
+            </button>
             <button id="btn-publicar" class="button button-primary btn hidden" type="button">
               <i class="bi bi-plus-lg"></i> Publicar
             </button>

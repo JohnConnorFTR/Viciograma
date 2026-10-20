@@ -13,7 +13,7 @@ No hace falta configurar permisos de sitios por adelantado. `activeTab` y `scrip
 
 ## Formatos y límites
 
-Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `wav`, `ogg`, `mp4`, `webm`, `m3u8`, entre otros). Los enlaces `blob:` y `data:` se excluyen. Un enlace protegido por autenticación, token temporal, CORS, DRM o restricciones del alojamiento puede no funcionar en la vista previa. La extensión no descarga ni extrae archivos del servidor; solo lee URLs que la página ya expone al navegador.
+Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `wav`, `ogg`, `mp4`, `webm`, `avi`, `m3u8`, entre otros). Los enlaces `blob:` y `data:` se excluyen. Un enlace protegido por autenticación, token temporal, CORS, DRM o restricciones del alojamiento puede no funcionar en la vista previa. La extensión no descarga ni extrae archivos del servidor; solo lee URLs que la página ya expone al navegador.
 
 Al abrir en Viciograma, el popup genera el enlace del reproductor con el título derivado del nombre de archivo en la URL. Esto permite que el título y la clave de comentarios coincidan entre la página de alojamiento y el enlace directo del medio.
 

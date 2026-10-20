@@ -16,7 +16,13 @@ final class MediaPost
         public readonly string $linkUrl,
         public readonly ?string $posterUrl,
         public readonly string $createdAt,
-        public readonly string $username
+        public readonly string $username,
+        public readonly int $likesCount = 0,
+        public readonly float $ratingAverage = 0.0,
+        public readonly int $reviewCount = 0,
+        public readonly bool $likedByMe = false,
+        public readonly int $viewsCount = 0,
+        public readonly int $seasonCount = 0
     ) {
     }
 
@@ -34,6 +40,12 @@ final class MediaPost
             'poster_url' => $this->posterUrl,
             'created_at' => $this->createdAt,
             'username' => $this->username,
+            'likes_count' => $this->likesCount,
+            'rating_average' => $this->ratingAverage,
+            'review_count' => $this->reviewCount,
+            'liked_by_me' => $this->likedByMe,
+            'views_count' => $this->viewsCount,
+            'season_count' => $this->seasonCount,
         ];
     }
 }

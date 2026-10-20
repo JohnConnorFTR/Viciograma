@@ -38,7 +38,7 @@ function getCandidateTitle(candidate) {
       }
       return decoded;
     };
-    const extension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
+    const extension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|avi|m3u8)$/i;
     const queryValues = [...url.searchParams.entries()]
       .sort(([left], [right]) => /^(filename|file|name|title|download)$/i.test(right)
         - /^(filename|file|name|title|download)$/i.test(left))
@@ -205,7 +205,7 @@ async function scanActiveTab() {
   const [result] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     func: () => {
-      const mediaExtension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
+      const mediaExtension = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|avi|m3u8)$/i;
       const found = new Map();
       const scannedDocuments = new Set();
       let inaccessibleFrameCount = 0;

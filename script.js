@@ -1,6 +1,6 @@
 /**
  * script.js — Viciograma Video Cloud Player
- * Lógica: URL parsing · player switching · HLS · blacklist · Facebook social + comments · AdSense
+ * Lógica: URL parsing · player switching · AVI transcoding · HLS · blacklist · comments · AdSense
  */
 
 'use strict';
@@ -22,12 +22,20 @@ const VG_CONFIG = {
 const SOURCE_TYPE = Object.freeze({
   NATIVE_MP4:  'native_mp4',
   NATIVE_WEBM: 'native_webm',
+  AVI:         'avi',
   HLS:         'hls',
   YOUTUBE:     'youtube',
   UNKNOWN:     'unknown',
 });
 
-const MEDIA_FILE_EXTENSION = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|m3u8)$/i;
+const MEDIA_FILE_EXTENSION = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|avi|m3u8)$/i;
+const FFMPEG_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+const FFMPEG_CORE_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js';
+
+let ffmpegLibraryPromise = null;
+let ffmpegInstancePromise = null;
+let aviObjectUrl = '';
+let aviRequestId = 0;
 
 function decodeUrlPart(value) {
   let decoded = value.replace(/\+/g, ' ');
@@ -112,6 +120,9 @@ function detectSourceType(url) {
     }
     if (extension === 'm3u8' || path.endsWith('.m3u8')) {
       return { type: SOURCE_TYPE.HLS, url };
+    }
+    if (extension === 'avi' || path.endsWith('.avi')) {
+      return { type: SOURCE_TYPE.AVI, url };
     }
     if (extension === 'webm' || path.endsWith('.webm')) {
       return { type: SOURCE_TYPE.NATIVE_WEBM, url };
@@ -316,6 +327,9 @@ const refs = {
   originTitleStatus: $('origin-title-status'),
   originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
+  aviTranscodeStatus: $('avi-transcode-status'),
+  aviTranscodeMessage: $('avi-transcode-message'),
+  aviTranscodeProgress: $('avi-transcode-progress'),
   imaAdContainer:   $('ima-ad-container'),
   embedPlayer:      $('embed-player'),
   videoTitle:       $('video-title'),
@@ -762,11 +776,171 @@ function showPlaceholder() {
   refs.placeholder.classList.add('d-flex');
   if (refs.placeholderDefault) refs.placeholderDefault.hidden = false;
   if (refs.originLanding) refs.originLanding.hidden = true;
+  if (refs.aviTranscodeStatus) refs.aviTranscodeStatus.hidden = true;
   refs.nativeContainer.classList.add('d-none');
   refs.embedContainer.classList.add('d-none');
   // Limpiar src del embed para no dejar iframes colgados
   if (refs.embedPlayer) refs.embedPlayer.src = 'about:blank';
   if (refs.nativePlayer) refs.nativePlayer.removeAttribute('src');
+}
+
+function updateAviProgress(message, progress = null) {
+  if (!refs.aviTranscodeStatus) return;
+  refs.aviTranscodeStatus.hidden = false;
+  refs.aviTranscodeMessage.textContent = message;
+  refs.aviTranscodeProgress.hidden = progress === null;
+  if (progress !== null) refs.aviTranscodeProgress.value = Math.max(0, Math.min(100, progress));
+}
+
+function loadFfmpegLibrary() {
+  if (window.FFmpeg?.createFFmpeg) return Promise.resolve(window.FFmpeg);
+  if (ffmpegLibraryPromise) return ffmpegLibraryPromise;
+
+  ffmpegLibraryPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = FFMPEG_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => {
+      if (window.FFmpeg?.createFFmpeg) {
+        resolve(window.FFmpeg);
+      } else {
+        reject(new Error('La librería de conversión no está disponible.'));
+      }
+    };
+    script.onerror = () => reject(new Error('No se pudo cargar la librería de conversión AVI.'));
+    document.head.appendChild(script);
+  }).catch((error) => {
+    ffmpegLibraryPromise = null;
+    throw error;
+  });
+
+  return ffmpegLibraryPromise;
+}
+
+async function getFfmpeg() {
+  if (!ffmpegInstancePromise) {
+    ffmpegInstancePromise = loadFfmpegLibrary().then(async (library) => {
+      const ffmpeg = library.createFFmpeg({
+        corePath: FFMPEG_CORE_URL,
+        log: false,
+        progress: ({ ratio }) => {
+          if (!refs.aviTranscodeStatus?.hidden && Number.isFinite(ratio)) {
+            updateAviProgress('Convirtiendo AVI para reproducirlo en el navegador…', ratio * 100);
+          }
+        },
+      });
+      await ffmpeg.load();
+      return ffmpeg;
+    }).catch((error) => {
+      ffmpegInstancePromise = null;
+      throw error;
+    });
+  }
+  return ffmpegInstancePromise;
+}
+
+async function fetchAviFile(url, requestId) {
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    throw new Error(`El servidor del video respondió HTTP ${response.status}.`);
+  }
+
+  const totalBytes = Number(response.headers.get('content-length'));
+  const reader = response.body.getReader();
+  const hasKnownSize = Number.isSafeInteger(totalBytes) && totalBytes > 0;
+  const chunks = hasKnownSize ? null : [];
+  const data = hasKnownSize ? new Uint8Array(totalBytes) : null;
+  let loadedBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (data) {
+      if (loadedBytes + value.byteLength > data.byteLength) {
+        throw new Error('El tamaño descargado no coincide con el informado por el servidor.');
+      }
+      data.set(value, loadedBytes);
+    } else {
+      chunks.push(value);
+    }
+    loadedBytes += value.byteLength;
+    if (requestId !== aviRequestId) {
+      await reader.cancel();
+      return null;
+    }
+    const progress = hasKnownSize
+      ? (loadedBytes / totalBytes) * 35
+      : null;
+    updateAviProgress(
+      `Descargando AVI… ${(loadedBytes / (1024 * 1024)).toFixed(1)} MB`,
+      progress
+    );
+  }
+
+  if (data) return loadedBytes === data.byteLength ? data : data.subarray(0, loadedBytes);
+
+  const completeData = new Uint8Array(loadedBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    completeData.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return completeData;
+}
+
+async function loadAvi(url, subtitleUrl, requestId) {
+  showPlaceholder();
+  if (refs.placeholderDefault) refs.placeholderDefault.hidden = true;
+  updateAviProgress('Conectando con el servidor del AVI…');
+
+  try {
+    let input = await fetchAviFile(url, requestId);
+    if (!input || requestId !== aviRequestId) return;
+
+    updateAviProgress('Preparando el reproductor AVI…', 35);
+    const ffmpeg = await getFfmpeg();
+    if (requestId !== aviRequestId) return;
+
+    updateAviProgress('Convirtiendo AVI para reproducirlo en el navegador…', 40);
+    for (const filename of ['viciograma-input.avi', 'viciograma-output.mp4']) {
+      try {
+        ffmpeg.FS('unlink', filename);
+      } catch {
+        // The virtual file may not exist on the first playback.
+      }
+    }
+    ffmpeg.FS('writeFile', 'viciograma-input.avi', input);
+    input = null;
+    await ffmpeg.run(
+      '-i', 'viciograma-input.avi',
+      '-map', '0:v:0',
+      '-map', '0:a?',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '23',
+      '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      'viciograma-output.mp4'
+    );
+    if (requestId !== aviRequestId) return;
+
+    const output = ffmpeg.FS('readFile', 'viciograma-output.mp4');
+    if (aviObjectUrl) URL.revokeObjectURL(aviObjectUrl);
+    aviObjectUrl = URL.createObjectURL(new Blob([output], { type: 'video/mp4' }));
+    ffmpeg.FS('unlink', 'viciograma-input.avi');
+    ffmpeg.FS('unlink', 'viciograma-output.mp4');
+    setExternalSubtitle(refs.nativePlayer, subtitleUrl);
+    refs.nativePlayer.onerror = () => showError('No se pudo reproducir el AVI convertido. Puede contener un códec incompatible o estar dañado.');
+    refs.nativePlayer.src = aviObjectUrl;
+    refs.nativePlayer.load();
+    showNativePlayer();
+  } catch (error) {
+    if (requestId !== aviRequestId) return;
+    console.error('No se pudo descargar o convertir el AVI:', error);
+    showError('No se pudo convertir el AVI. El servidor debe permitir CORS y el navegador necesita memoria suficiente. Probá con otro enlace o con un archivo más pequeño.');
+  }
 }
 
 async function showOriginLanding(rawUrl, title, description) {
@@ -908,6 +1082,11 @@ function setExternalSubtitle(videoEl, subtitleUrl) {
    FUNCIÓN PRINCIPAL: CARGAR VIDEO
    ================================================================ */
 function loadVideo({ videoUrl, title, description, subtitleUrl }) {
+  const requestId = ++aviRequestId;
+  if (aviObjectUrl) {
+    URL.revokeObjectURL(aviObjectUrl);
+    aviObjectUrl = '';
+  }
   const canonicalUrl = window.location.href;
   videoTitleReady = Promise.resolve(title || 'Viciograma – Video Cloud Player');
 
@@ -981,6 +1160,15 @@ function loadVideo({ videoUrl, title, description, subtitleUrl }) {
       setInfoBox(pageTitle, pageDescription, [
         { icon: 'bi-file-play-fill',   text: 'WebM' },
         { icon: 'bi-cloud-arrow-down', text: 'Remoto' },
+      ]);
+      break;
+    }
+
+    case SOURCE_TYPE.AVI: {
+      void loadAvi(videoUrl, subtitleUrl, requestId);
+      setInfoBox(pageTitle, pageDescription, [
+        { icon: 'bi-file-play-fill', text: 'AVI' },
+        { icon: 'bi-arrow-repeat', text: 'Conversión local' },
       ]);
       break;
     }

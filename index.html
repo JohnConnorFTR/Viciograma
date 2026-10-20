@@ -150,7 +150,7 @@
             <form class="vg-quick-play-form" id="quick-play-form">
               <label class="visually-hidden" for="quick-play-url">URL del audio o video</label>
               <input class="vg-generator-input" id="quick-play-url" type="url"
-                     placeholder="https://…/video.mp4" required autocomplete="url" />
+                     placeholder="https://…/video.mp4 o video.avi" required autocomplete="url" />
               <label class="visually-hidden" for="quick-play-subtitle-url">URL del archivo de subtítulos VTT (opcional)</label>
               <input class="vg-generator-input" id="quick-play-subtitle-url" type="url"
                      placeholder="https://…/subtitulos.vtt (opcional)" autocomplete="url" />
@@ -189,6 +189,12 @@
               Este enlace lleva a una página, no a un archivo multimedia directo.
               Viciograma no extrae archivos desde páginas externas.
             </p>
+          </div>
+          <div class="vg-avi-transcode-status" id="avi-transcode-status" role="status" aria-live="polite" hidden>
+            <i class="bi bi-arrow-repeat vg-avi-transcode-icon" aria-hidden="true"></i>
+            <p class="mb-2" id="avi-transcode-message">Preparando la reproducción AVI…</p>
+            <progress id="avi-transcode-progress" max="100" value="0" aria-label="Progreso de conversión AVI" hidden></progress>
+            <small>El AVI completo se descarga y convierte en este navegador. El servidor debe permitir CORS; los archivos grandes requieren bastante memoria.</small>
           </div>
         </div>
       </div>

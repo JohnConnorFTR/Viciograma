@@ -13,6 +13,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; min-width: 320px; background: var(--bg); color: var(--text); }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -22,13 +23,14 @@ img { max-width: 100%; display: block; }
 
 .app-shell { min-height: 100vh; }
 .topbar {
-  height: 76px; display: flex; align-items: center; justify-content: space-between;
+  height: 88px; display: flex; align-items: center; justify-content: space-between;
   gap: 20px; padding: 0 clamp(20px, 5vw, 60px); border-bottom: 1px solid rgba(255,255,255,.07);
   background: rgba(13,13,15,.92);
 }
 .brand, .topbar-actions { display: flex; align-items: center; }
 .brand { gap: 17px; }
-.brand img { width: 132px; height: 54px; object-fit: contain; filter: drop-shadow(0 2px 8px rgba(249,115,22,.12)); }
+.brand.navbar-brand { margin: 0; padding: 0; }
+.brand img { width: 220px; height: auto; object-fit: initial; filter: url(#chroma-green) drop-shadow(0 2px 8px rgba(249,115,22,.12)); }
 .brand-divider { height: 25px; width: 1px; background: #383534; }
 .brand-section { font: 700 11px "Space Grotesk", sans-serif; letter-spacing: .18em; color: #bbb2a8; }
 .topbar-actions { gap: 12px; }
@@ -111,6 +113,62 @@ img { max-width: 100%; display: block; }
 }
 .notice-error { border-color: rgba(192,80,65,.3); color: #e7aaa1; background: rgba(132,48,40,.1); }
 
+.detail-main { max-width: 1180px; margin: 0 auto; padding: 40px clamp(20px, 5vw, 60px) 80px; }
+.detail-page-shell { display: flex; flex-direction: column; gap: 20px; }
+.detail-page-header { display: flex; justify-content: flex-start; }
+.detail-page-card {
+  padding: 28px; border: 1px solid #2d2929; border-radius: 16px; background: #151517; box-shadow: 0 25px 80px rgba(0,0,0,.35);
+}
+.detail-page-card .detail-layout { display: grid; grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.detail-page-card .detail-layout .poster { height: 315px; }
+.detail-page-card .detail-copy { display: flex; flex-direction: column; gap: 12px; }
+.detail-page-card .detail-copy h1 { margin: 6px 0 0; font: 600 clamp(28px, 5vw, 42px) "Space Grotesk", sans-serif; letter-spacing: -.05em; }
+.detail-page-card .detail-copy p { margin: 0; color: #beb5af; line-height: 1.75; }
+.detail-page-card .detail-copy .post-type { display: inline-block; color: #d18d5a; font: 700 11px "Space Grotesk", sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+.detail-page-card .detail-copy .post-genre { color: #e4b47c; }
+.social-stats { display: flex; flex-wrap: wrap; gap: 12px 18px; color: #d6d0ca; font-size: 12px; }
+.social-stats span { display: inline-flex; align-items: center; gap: 7px; }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.review-box { margin-top: 12px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.review-box .review-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.review-count { color: #b8aea6; font-size: 11px; }
+.review-list { display: grid; gap: 10px; margin-bottom: 16px; }
+.review-item { padding: 12px 14px; border: 1px solid #302b2b; border-radius: 8px; background: rgba(255,255,255,.02); color: var(--text); }
+.review-item-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-item-header strong { color: #f1e9e2; font-size: 13px; }
+.review-rating { color: #f5ad48; letter-spacing: .08em; white-space: nowrap; }
+.review-item p { margin: 8px 0 5px; color: #c8c0ba; font-size: 12px; line-height: 1.6; white-space: pre-wrap; }
+.review-item p.review-no-comment, .review-empty { color: #968d86; font-size: 12px; }
+.review-empty { margin: 0 0 14px; }
+.review-item time { color: #827a75; font-size: 10px; }
+.form-stack.compact { gap: 12px; }
+.form-stack.compact label { display: grid; gap: 8px; color: #d8d1cb; font-size: 12px; }
+.form-stack.compact select, .form-stack.compact textarea { width: 100%; padding: 10px 12px; border: 1px solid #382f2d; border-radius: 8px; background: #111214; color: var(--text); }
+.profile-layout { display: flex; flex-direction: column; gap: 20px; }
+.profile-card { display: flex; align-items: center; gap: 18px; }
+.profile-avatar {
+  width: 64px; height: 64px; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(249,115,22,.35); background: linear-gradient(145deg,#3a221b,#151517); color: #f6bf8d; font: 700 24px "Space Grotesk", sans-serif;
+}
+.profile-card h1 { margin: 0; font: 600 28px "Space Grotesk", sans-serif; }
+.profile-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.profile-stats div {
+  padding: 14px 12px; border: 1px solid #2b282a; border-radius: 10px; background: rgba(255,255,255,.02); text-align: center;
+}
+.profile-stats strong { display: block; font-size: 24px; color: #f7b06d; }
+.profile-stats span { color: #a8a09a; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.profile-actions { display: flex; justify-content: flex-start; }
+.profile-list { display: grid; gap: 10px; }
+.profile-post {
+  width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; padding: 12px 14px; border: 1px solid #2c2a2a; border-radius: 10px; background: transparent; color: var(--text); text-align: left; cursor: pointer;
+}
+.profile-post:hover { border-color: #754727; background: rgba(255,255,255,.02); }
+.empty-mini { margin: 0; color: #958d88; }
+.detail-empty {
+  display: grid; place-items: center; min-height: 50vh; text-align: center; gap: 12px; padding: 32px 16px; background: #151517; border: 1px solid #2b2929; border-radius: 16px;
+}
+.detail-empty h1 { margin: 0; font: 600 clamp(28px, 4vw, 38px) "Space Grotesk", sans-serif; }
+.detail-empty p { margin: 0; color: #a8a09a; }
+
 .loading-state { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 245px; color: var(--muted); font-size: 13px; }
 .loader { width: 17px; height: 17px; border: 2px solid #514139; border-top-color: var(--orange); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -124,40 +182,48 @@ img { max-width: 100%; display: block; }
 .empty-state p { max-width: 420px; margin: 0 0 16px; color: #89827e; font-size: 13px; line-height: 1.65; }
 
 .featured-card, .post-card {
-  width: 100%; display: block; padding: 0; overflow: hidden; border: 1px solid #2b2929; border-radius: 7px; background: #151517; text-align: left; cursor: pointer; transition: border-color .2s, transform .2s;
+  width: 100%; display: block; padding: 0; overflow: hidden; border: 1px solid #2b2929; border-radius: 7px; background: #151517; color: var(--text); text-align: left; cursor: pointer; transition: border-color .2s, transform .2s;
 }
 .featured-card:hover, .post-card:hover { border-color: #754727; transform: translateY(-2px); }
 .featured-card { display: grid; grid-template-columns: 180px 1fr; gap: 27px; margin: 0 0 25px; padding: 17px; background: linear-gradient(105deg,#1b1716,#161517 75%); }
 .featured-content { display: flex; align-items: flex-start; flex-direction: column; justify-content: center; padding: 10px 20px 10px 0; }
-.featured-content strong { margin-top: 12px; font: 600 27px "Space Grotesk",sans-serif; }
+.featured-content strong { margin-top: 12px; color: #f1ece7; font: 600 27px "Space Grotesk",sans-serif; }
 .featured-description { max-width: 540px; margin-top: 8px; color: #a49b95; font-size: 13px; line-height: 1.7; }
 .featured-meta { margin-top: 13px; color: #a98970; font-size: 11px; }
 .featured-action { margin-top: 18px; color: #ffad6b; font-size: 12px; font-weight: 700; }
 
 .post-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 18px; }
 .poster { position: relative; height: 246px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #28211e; }
-.poster::after { position: absolute; inset: 30% 0 0; content: ""; background: linear-gradient(transparent,rgba(0,0,0,.47)); pointer-events: none; }
-.poster img { width: 100%; height: 100%; object-fit: cover; }
+.poster::after { position: absolute; z-index: 1; inset: 30% 0 0; content: ""; background: linear-gradient(transparent,rgba(0,0,0,.47)); pointer-events: none; }
+.poster img { position: absolute; z-index: 0; inset: 0; display: block; width: 100%; max-width: none; height: 100%; object-fit: cover; }
 .poster-copper { background: radial-gradient(ellipse at 50% 35%,#895239,#33221e 62%,#1d1918); }
 .poster-rose { background: radial-gradient(ellipse at 48% 33%,#783f48,#36222d 61%,#1c191d); }
 .poster-blue { background: radial-gradient(ellipse at 50% 32%,#426578,#202e3b 62%,#17181d); }
 .poster-violet { background: radial-gradient(ellipse at 48% 34%,#69527e,#30273b 62%,#19171c); }
 .poster-green { background: radial-gradient(ellipse at 50% 32%,#51705d,#293b34 62%,#171b19); }
-.poster-mark { display: grid; width: 45px; height: 45px; place-items: center; border: 1px solid rgba(255,225,199,.44); border-radius: 50%; color: rgba(255,218,186,.82); font-size: 23px; }
-.poster-word { position: absolute; z-index: 1; right: 10px; bottom: 27px; left: 10px; display: -webkit-box; overflow: hidden; color: rgba(255,242,229,.8); font: 600 14px "Space Grotesk",sans-serif; line-height: 1.25; text-align: center; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.poster-type { position: absolute; z-index: 1; top: 10px; left: 10px; padding: 5px 8px; border: 1px solid rgba(255,255,255,.16); border-radius: 3px; color: #f2e6dc; background: rgba(15,12,11,.64); font-size: 9px; }
+.poster-mark { position: absolute; z-index: 2; top: 50%; left: 50%; display: grid; width: 45px; height: 45px; place-items: center; border: 1px solid rgba(255,225,199,.44); border-radius: 50%; color: rgba(255,218,186,.82); font-size: 23px; transform: translate(-50%, -50%); }
+.poster-word { position: absolute; z-index: 2; right: 10px; bottom: 27px; left: 10px; display: -webkit-box; overflow: hidden; color: rgba(255,242,229,.8); font: 600 14px "Space Grotesk",sans-serif; line-height: 1.25; text-align: center; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.poster-type { position: absolute; z-index: 2; top: 10px; left: 10px; padding: 5px 8px; border: 1px solid rgba(255,255,255,.16); border-radius: 3px; color: #f2e6dc; background: rgba(15,12,11,.64); font-size: 9px; }
 .post-info { display: flex; flex-direction: column; gap: 5px; padding: 12px; }
 .post-type, .post-genre { overflow: hidden; color: #a98970; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.post-info strong { overflow: hidden; font: 600 14px "Space Grotesk",sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.post-info strong { overflow: hidden; color: #f1ece7; font: 600 14px "Space Grotesk",sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .post-genre { color: #7e7873; }
+.post-stats { color: #d6d0ca; font-size: 11px; }
+.post-stats .bi-heart-fill { color: #e57868; }
+.post-stats .bi-star-fill { color: #f5ad48; }
 
 .site-footer { min-height: 95px; display: flex; align-items: center; justify-content: center; gap: 22px; padding: 20px 32px; border-top: 1px solid #252324; color: #807a76; font-size: 11px; }
 .site-footer p { margin: 0 auto 0 0; }
 .footer-brand { display: flex; align-items: center; gap: 8px; color: #c9c1bb; white-space: nowrap; }
-.footer-brand img { width: 78px; height: 31px; object-fit: contain; }
+.footer-brand img { width: 112px; height: auto; filter: url(#chroma-green); }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(5,5,6,.77); backdrop-filter: blur(5px); }
 .modal-panel { width: min(475px,100%); max-height: min(90vh,820px); overflow-y: auto; padding: 27px; border: 1px solid #40342d; border-radius: 11px; background: #171618; box-shadow: 0 25px 100px rgba(0,0,0,.65); }
+.publish-modal { width: min(680px,100%); height: min(90vh,820px); display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.publish-modal-header { flex: 0 0 auto; align-items: center; margin: 0; padding: 20px 24px; border-bottom: 1px solid #302b2b; background: #171618; }
+.publish-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+.publish-modal-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 22px 24px; overscroll-behavior: contain; }
+.publish-modal-footer { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid #302b2b; background: #171618; }
 .modal-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 8px; }
 .modal-heading h2 { margin: 7px 0 0; font: 600 23px "Space Grotesk",sans-serif; letter-spacing: -.04em; }
 .icon-button { width: 34px; height: 34px; border: 1px solid #383434; border-radius: 6px; color: #bab1a9; background: #201f20; cursor: pointer; }
@@ -169,6 +235,28 @@ img { max-width: 100%; display: block; }
 }
 .form-stack textarea { min-height: 78px; resize: vertical; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.series-episodes { padding: 14px; border: 1px solid #332d2a; border-radius: 8px; background: rgba(255,255,255,.02); }
+.episodes-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.episodes-heading strong, .episodes-heading small { display: block; }
+.episodes-heading strong { color: #eeeae5; font-size: 13px; }
+.episodes-heading small { margin-top: 4px; color: #968d86; font-size: 11px; }
+.episode-add { min-height: 34px; padding: 0 10px; border: 1px solid #3a302b; color: #f5ad78; }
+.episode-entry { display: grid; grid-template-columns: 86px 86px minmax(120px,1fr) minmax(170px,1.5fr) 34px; align-items: end; gap: 9px; padding: 12px 0; border-top: 1px solid #302b2b; }
+.episode-entry label { min-width: 0; }
+.episode-remove { min-height: 38px; padding: 0; color: #d78e82; }
+.episode-browser { margin-top: 16px; }
+.episode-browser h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: #eeeae5; font: 600 16px "Space Grotesk",sans-serif; }
+.episode-browser h2 span { color: #b8aea6; font: 500 11px "DM Sans",sans-serif; }
+.episode-seasons { display: grid; gap: 16px; }
+.episode-season { padding: 13px; border: 1px solid #302b2b; border-radius: 8px; background: rgba(255,255,255,.015); }
+.episode-season h3 { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; color: #e4b47c; font: 600 13px "Space Grotesk",sans-serif; }
+.episode-season h3 span { color: #968d86; font: 500 10px "DM Sans",sans-serif; }
+.episode-browser-list { display: grid; gap: 8px; }
+.episode-link { display: grid; grid-template-columns: 42px minmax(0,1fr) 20px; align-items: center; gap: 10px; padding: 11px 12px; border: 1px solid #302b2b; border-radius: 7px; background: rgba(255,255,255,.02); }
+.episode-link:hover { border-color: #754727; background: rgba(249,115,22,.05); }
+.episode-number { color: #d18d5a; font-size: 11px; font-weight: 700; }
+.episode-name { overflow: hidden; color: #eeeae5; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.episode-link i { color: #a98970; }
 .form-error { margin: 0; color: #ef978d; font-size: 11px; }
 .switch-auth { margin-top: 17px; text-align: center; color: #8d8680; font-size: 11px; }
 .switch-auth button { border: 0; background: none; color: #f5a263; cursor: pointer; font-weight: 700; }
@@ -186,8 +274,8 @@ img { max-width: 100%; display: block; }
   .post-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
 }
 @media (max-width: 650px) {
-  .topbar { height: 65px; padding: 0 16px; }
-  .brand img { width: 94px; height: 43px; }
+  .topbar { height: 68px; padding: 0 16px; }
+  .brand img { width: 165px; }
   .brand-section { font-size: 9px; }
   .hero { min-height: 448px; align-items: flex-start; padding: 48px 23px 32px; }
   .hero-copy { width: 100%; }
@@ -203,4 +291,12 @@ img { max-width: 100%; display: block; }
   .featured-content strong { margin-top: 8px; font-size: 18px; }
   .featured-description { overflow: hidden; max-height: 60px; font-size: 10px; line-height: 1.4; }
   .site-footer { flex-wrap: wrap; justify-content: flex-start; padding: 20px; }
+  .publish-modal { height: min(92dvh,820px); }
+  .publish-modal-header { padding: 16px; }
+  .publish-modal-body { padding: 16px; }
+  .publish-modal-footer { padding: 12px 16px; }
+  .episode-entry { grid-template-columns: 1fr 1fr 34px; }
+  .episode-title-field, .episode-url-field { grid-column: 1 / 3; }
+  .episode-remove { grid-column: 3; grid-row: 1; }
+  .episode-link { grid-template-columns: 72px minmax(0,1fr) 18px; }
 }
