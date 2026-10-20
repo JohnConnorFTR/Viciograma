@@ -98,10 +98,23 @@ final class SqliteDatabase
                 UNIQUE(post_id, season_number, episode_number)
             )'
         );
+        $connection->exec(
+            'CREATE TABLE IF NOT EXISTS post_subtitles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+                target_key TEXT NOT NULL,
+                original_name TEXT NOT NULL,
+                format TEXT NOT NULL,
+                content BLOB NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(post_id, target_key)
+            )'
+        );
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC, id DESC)');
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_posts_type ON posts(type)');
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_likes_post ON post_likes(post_id)');
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_reviews_post ON post_reviews(post_id)');
         $connection->exec('CREATE INDEX IF NOT EXISTS idx_episodes_post ON post_episodes(post_id, season_number, episode_number)');
+        $connection->exec('CREATE INDEX IF NOT EXISTS idx_subtitles_post ON post_subtitles(post_id, target_key)');
     }
 }

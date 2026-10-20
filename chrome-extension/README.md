@@ -17,4 +17,6 @@ Se buscan URLs que terminen en formatos de audio/video comunes (`mp3`, `m4a`, `w
 
 Al abrir en Viciograma, el popup genera el enlace del reproductor con el título derivado del nombre de archivo en la URL. Esto permite que el título y la clave de comentarios coincidan entre la página de alojamiento y el enlace directo del medio.
 
+Si el enlace se abrió desde la cartelera y contiene `#viciograma_subtitle=<URL>`, la extensión pasa ese subtítulo al reproductor como parámetro `s`. El sitio de alojamiento debe conservar el fragmento en la pestaña activa para que la extensión pueda leerlo.
+
 Si no aparecen enlaces, esperá a que la página termine de cargar y abrí de nuevo el popup. Algunas páginas solo revelan la URL después de una interacción, no la exponen en el DOM o la muestran dentro de un iframe de otro origen, que no puede inspeccionarse con los permisos actuales.

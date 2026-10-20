@@ -319,6 +319,14 @@ body {
   animation: vg-avi-spin 1.2s linear infinite;
 }
 
+.vg-subtitle-status {
+  color: var(--vg-muted);
+}
+
+.vg-subtitle-status[data-status="error"] {
+  color: #ff8f8f;
+}
+
 @keyframes vg-avi-spin {
   to { transform: rotate(360deg); }
 }

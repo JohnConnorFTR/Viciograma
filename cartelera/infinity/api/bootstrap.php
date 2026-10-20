@@ -76,11 +76,12 @@ function services(): array
         $users,
         new AuthService($users),
         new PostService(new SqlitePostRepository($connection)),
+        $connection,
     ];
 }
 
 try {
-    [$userRepository, $authService, $postService] = services();
+    [$userRepository, $authService, $postService, $connection] = services();
 } catch (Throwable $exception) {
     error_log('Viciograma Cartelera database initialization failed: ' . $exception->getMessage());
     respond(['error' => 'El servicio de publicaciones no está disponible. Verificá que el hosting tenga PDO SQLite habilitado y permisos de escritura en api/data.'], 503);

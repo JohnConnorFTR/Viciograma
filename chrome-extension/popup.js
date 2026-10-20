@@ -318,6 +318,18 @@ refs.openPlayer.addEventListener('click', async () => {
 
   const playerUrl = new URL(PLAYER_URL);
   playerUrl.searchParams.set('v', activeCandidate.url);
+  try {
+    const pageUrl = new URL(activeTab.url);
+    const subtitleUrl = new URLSearchParams(pageUrl.hash.replace(/^#/, ''))
+      .get('viciograma_subtitle');
+    if (subtitleUrl && /^https?:\/\//i.test(subtitleUrl)) {
+      playerUrl.searchParams.set('s', subtitleUrl);
+    }
+  } catch (error) {
+    setScanState('No se pudo leer el subtítulo vinculado desde la cartelera', 'error');
+    console.error('No se pudo leer la URL del subtítulo:', error);
+    return;
+  }
   const title = getCandidateTitle(activeCandidate);
   if (title) playerUrl.searchParams.set('t', title);
 

@@ -206,6 +206,76 @@ final class SqlitePostRepository
         return $statement->fetchAll();
     }
 
+    public function ownsPost(int $postId, int $userId): bool
+    {
+        $statement = $this->connection->prepare('SELECT 1 FROM posts WHERE id = :post_id AND user_id = :user_id');
+        $statement->execute(['post_id' => $postId, 'user_id' => $userId]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function episodeExists(int $postId, int $seasonNumber, int $episodeNumber): bool
+    {
+        $statement = $this->connection->prepare(
+            'SELECT 1 FROM post_episodes WHERE post_id = :post_id AND season_number = :season_number AND episode_number = :episode_number'
+        );
+        $statement->execute([
+            'post_id' => $postId,
+            'season_number' => $seasonNumber,
+            'episode_number' => $episodeNumber,
+        ]);
+
+        return $statement->fetchColumn() !== false;
+    }
+
+    public function saveSubtitle(int $postId, string $targetKey, string $originalName, string $format, string $content): int
+    {
+        $statement = $this->connection->prepare(
+            'INSERT INTO post_subtitles (post_id, target_key, original_name, format, content)
+             VALUES (:post_id, :target_key, :original_name, :format, :content)
+             ON CONFLICT(post_id, target_key) DO UPDATE SET
+                original_name = excluded.original_name,
+                format = excluded.format,
+                content = excluded.content,
+                created_at = CURRENT_TIMESTAMP'
+        );
+        $statement->bindValue(':post_id', $postId, PDO::PARAM_INT);
+        $statement->bindValue(':target_key', $targetKey, PDO::PARAM_STR);
+        $statement->bindValue(':original_name', $originalName, PDO::PARAM_STR);
+        $statement->bindValue(':format', $format, PDO::PARAM_STR);
+        $statement->bindValue(':content', $content, PDO::PARAM_LOB);
+        $statement->execute();
+
+        $lookup = $this->connection->prepare(
+            'SELECT id FROM post_subtitles WHERE post_id = :post_id AND target_key = :target_key'
+        );
+        $lookup->execute(['post_id' => $postId, 'target_key' => $targetKey]);
+
+        return (int) $lookup->fetchColumn();
+    }
+
+    public function subtitlesForPost(int $postId): array
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id, target_key, original_name, format
+             FROM post_subtitles WHERE post_id = :post_id ORDER BY target_key'
+        );
+        $statement->execute(['post_id' => $postId]);
+
+        return $statement->fetchAll();
+    }
+
+    public function subtitleById(int $subtitleId): ?array
+    {
+        $statement = $this->connection->prepare(
+            'SELECT original_name, format, content FROM post_subtitles WHERE id = :id'
+        );
+        $statement->execute(['id' => $subtitleId]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $row;
+    }
+
     public function registerView(int $postId): int
     {
         $statement = $this->connection->prepare(

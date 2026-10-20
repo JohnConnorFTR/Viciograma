@@ -22,6 +22,7 @@ const VG_CONFIG = {
 const SOURCE_TYPE = Object.freeze({
   NATIVE_MP4:  'native_mp4',
   NATIVE_WEBM: 'native_webm',
+  NATIVE_MKV:  'native_mkv',
   TRANSCODED:  'transcoded',
   HLS:         'hls',
   YOUTUBE:     'youtube',
@@ -36,6 +37,10 @@ let ffmpegLibraryPromise = null;
 let ffmpegInstancePromise = null;
 let aviObjectUrl = '';
 let aviRequestId = 0;
+let ffmpegQueue = Promise.resolve();
+let ffmpegProgressHandler = null;
+let subtitleTaskId = 0;
+const subtitleObjectUrls = new Set();
 
 function decodeUrlPart(value) {
   let decoded = value.replace(/\+/g, ' ');
@@ -121,8 +126,11 @@ function detectSourceType(url) {
     if (extension === 'm3u8' || path.endsWith('.m3u8')) {
       return { type: SOURCE_TYPE.HLS, url };
     }
-    if (/^(avi|mkv)$/.test(extension || '') || /\.(avi|mkv)$/.test(path)) {
+    if (extension === 'avi' || /\.avi$/.test(path)) {
       return { type: SOURCE_TYPE.TRANSCODED, extension, url };
+    }
+    if (extension === 'mkv' || /\.mkv$/.test(path)) {
+      return { type: SOURCE_TYPE.NATIVE_MKV, extension, url };
     }
     if (extension === 'webm' || path.endsWith('.webm')) {
       return { type: SOURCE_TYPE.NATIVE_WEBM, url };
@@ -327,6 +335,7 @@ const refs = {
   originTitleStatus: $('origin-title-status'),
   originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
+  subtitleStatus: $('subtitle-status'),
   aviTranscodeStatus: $('avi-transcode-status'),
   aviTranscodeMessage: $('avi-transcode-message'),
   aviTranscodeProgress: $('avi-transcode-progress'),
@@ -793,6 +802,12 @@ function updateAviProgress(message, progress = null) {
   if (progress !== null) refs.aviTranscodeProgress.value = Math.max(0, Math.min(100, progress));
 }
 
+function queueFfmpegTask(task) {
+  const result = ffmpegQueue.then(task);
+  ffmpegQueue = result.catch(() => {});
+  return result;
+}
+
 function loadFfmpegLibrary() {
   if (window.FFmpeg?.createFFmpeg) return Promise.resolve(window.FFmpeg);
   if (ffmpegLibraryPromise) return ffmpegLibraryPromise;
@@ -825,9 +840,7 @@ async function getFfmpeg() {
         corePath: FFMPEG_CORE_URL,
         log: false,
         progress: ({ ratio }) => {
-          if (!refs.aviTranscodeStatus?.hidden && Number.isFinite(ratio)) {
-            updateAviProgress('Convirtiendo AVI para reproducirlo en el navegador…', ratio * 100);
-          }
+          if (Number.isFinite(ratio)) ffmpegProgressHandler?.(ratio);
         },
       });
       await ffmpeg.load();
@@ -900,41 +913,56 @@ async function loadTranscodedVideo(url, extension, subtitleUrl, requestId) {
     if (!input || requestId !== aviRequestId) return;
 
     updateAviProgress(`Preparando el reproductor ${format}…`, 35);
-    const ffmpeg = await getFfmpeg();
-    if (requestId !== aviRequestId) return;
+    const output = await queueFfmpegTask(async () => {
+      const ffmpeg = await getFfmpeg();
+      if (requestId !== aviRequestId) return null;
+      const inputName = `viciograma-input.${extension}`;
+      const outputName = 'viciograma-output.mp4';
+      const existingFiles = ffmpeg.FS('readdir', '/');
+      for (const filename of [inputName, outputName]) {
+        if (existingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
+      }
+      ffmpegProgressHandler = (ratio) => updateAviProgress(
+        `Convirtiendo ${format} para reproducirlo en el navegador…`,
+        ratio * 100
+      );
+      try {
+        ffmpeg.FS('writeFile', inputName, input);
+        input = null;
+        await ffmpeg.run(
+          '-i', inputName,
+          '-map', '0:v:0',
+          '-map', '0:a?',
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '23',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-movflags', '+faststart',
+          outputName
+        );
+        if (requestId !== aviRequestId) return null;
 
-    updateAviProgress(`Convirtiendo ${format} para reproducirlo en el navegador…`, 40);
-    const existingFiles = ffmpeg.FS('readdir', '/');
-    for (const filename of [`viciograma-input.${extension}`, 'viciograma-output.mp4']) {
-      if (existingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
-    }
-    ffmpeg.FS('writeFile', `viciograma-input.${extension}`, input);
-    input = null;
-    await ffmpeg.run(
-      '-i', `viciograma-input.${extension}`,
-      '-map', '0:v:0',
-      '-map', '0:a?',
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-crf', '23',
-      '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      '-movflags', '+faststart',
-      'viciograma-output.mp4'
-    );
-    if (requestId !== aviRequestId) return;
+        const converted = ffmpeg.FS('readFile', outputName);
+        const remainingFiles = ffmpeg.FS('readdir', '/');
+        for (const filename of [inputName, outputName]) {
+          if (remainingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
+        }
+        return converted;
+      } finally {
+        ffmpegProgressHandler = null;
+      }
+    });
+    if (!output || requestId !== aviRequestId) return;
 
-    const output = ffmpeg.FS('readFile', 'viciograma-output.mp4');
     if (aviObjectUrl) URL.revokeObjectURL(aviObjectUrl);
     aviObjectUrl = URL.createObjectURL(new Blob([output], { type: 'video/mp4' }));
-    ffmpeg.FS('unlink', `viciograma-input.${extension}`);
-    ffmpeg.FS('unlink', 'viciograma-output.mp4');
-    setExternalSubtitle(refs.nativePlayer, subtitleUrl);
     refs.nativePlayer.onerror = () => showError(`No se pudo reproducir el ${format} convertido. Puede contener un códec incompatible o estar dañado.`);
     refs.nativePlayer.src = aviObjectUrl;
     refs.nativePlayer.load();
     showNativePlayer();
+    await setExternalSubtitle(refs.nativePlayer, subtitleUrl, requestId);
   } catch (error) {
     if (requestId !== aviRequestId) return;
     console.error(`No se pudo descargar o convertir el ${format}:`, error);
@@ -1065,22 +1093,120 @@ function loadHLS(url, videoEl) {
   }
 }
 
-function setExternalSubtitle(videoEl, subtitleUrl) {
-  videoEl.querySelectorAll('track[data-viciograma-subtitle]').forEach((track) => track.remove());
-  if (!subtitleUrl) return;
+function setSubtitleStatus(message, isError = false) {
+  if (!refs.subtitleStatus) return;
+  refs.subtitleStatus.textContent = message;
+  refs.subtitleStatus.dataset.status = isError ? 'error' : 'info';
+  refs.subtitleStatus.hidden = !message;
+}
 
+function clearSubtitleTracks(videoEl) {
+  videoEl.querySelectorAll('track[data-viciograma-subtitle]').forEach((track) => {
+    const objectUrl = track.dataset.objectUrl;
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      subtitleObjectUrls.delete(objectUrl);
+    }
+    track.remove();
+  });
+}
+
+function subtitleFormatFromUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    const queryFormat = url.searchParams.get('format')?.toLowerCase();
+    if (queryFormat) return queryFormat;
+    return url.pathname.match(/\.([a-z0-9]+)$/i)?.[1]?.toLowerCase() || 'vtt';
+  } catch {
+    return 'vtt';
+  }
+}
+
+function attachSubtitleTrack(videoEl, source, label, requestId, objectUrl = '') {
+  if (requestId !== aviRequestId) {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    return false;
+  }
   const track = document.createElement('track');
   track.kind = 'subtitles';
-  track.label = 'Español';
+  track.label = label;
   track.srclang = 'es';
-  track.src = subtitleUrl;
+  track.src = source;
   track.default = true;
   track.dataset.viciogramaSubtitle = 'true';
+  if (objectUrl) {
+    track.dataset.objectUrl = objectUrl;
+    subtitleObjectUrls.add(objectUrl);
+  }
   track.addEventListener('error', () => {
-    console.error('No se pudo cargar el archivo de subtítulos. Verificá que sea WebVTT y permita CORS.');
+    setSubtitleStatus('No se pudo cargar la pista. Verificá que la URL esté disponible y permita CORS.', true);
   });
   videoEl.append(track);
   track.track.mode = 'showing';
+  return true;
+}
+
+async function setExternalSubtitle(videoEl, subtitleUrl, requestId = aviRequestId) {
+  clearSubtitleTracks(videoEl);
+  if (!subtitleUrl) {
+    setSubtitleStatus('');
+    return;
+  }
+
+  const format = subtitleFormatFromUrl(subtitleUrl);
+  const label = 'Subtítulos';
+  if (format === 'vtt') {
+    attachSubtitleTrack(videoEl, subtitleUrl, label, requestId);
+    setSubtitleStatus('Subtítulos cargados.');
+    return;
+  }
+
+  setSubtitleStatus(`Convirtiendo subtítulos ${format.toUpperCase()} para el reproductor…`);
+  try {
+    const response = await fetch(subtitleUrl, { mode: 'cors' });
+    if (!response.ok) throw new Error(`El servidor respondió HTTP ${response.status}.`);
+    const subtitleBytes = new Uint8Array(await response.arrayBuffer());
+    if (!subtitleBytes.length || subtitleBytes.length > 5 * 1024 * 1024) {
+      throw new Error('El archivo de subtítulos está vacío o supera los 5 MB.');
+    }
+
+    const vtt = await queueFfmpegTask(async () => {
+      const ffmpeg = await getFfmpeg();
+      if (requestId !== aviRequestId) return null;
+      const inputName = `viciograma-subtitle-${++subtitleTaskId}.${format}`;
+      const outputName = `viciograma-subtitle-${subtitleTaskId}.vtt`;
+      const existingFiles = ffmpeg.FS('readdir', '/');
+      for (const filename of [inputName, outputName]) {
+        if (existingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
+      }
+      ffmpeg.FS('writeFile', inputName, subtitleBytes);
+      ffmpegProgressHandler = (ratio) => setSubtitleStatus(
+        `Convirtiendo subtítulos ${format.toUpperCase()}… ${Math.round(ratio * 100)}%`
+      );
+      try {
+        await ffmpeg.run('-i', inputName, '-map', '0:s:0', '-c:s', 'webvtt', '-f', 'webvtt', outputName);
+        if (requestId !== aviRequestId) return null;
+        const converted = ffmpeg.FS('readFile', outputName);
+        if (!converted.length) throw new Error('La conversión no generó una pista WebVTT.');
+        return converted;
+      } finally {
+        ffmpegProgressHandler = null;
+        const remainingFiles = ffmpeg.FS('readdir', '/');
+        for (const filename of [inputName, outputName]) {
+          if (remainingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
+        }
+      }
+    });
+    if (!vtt || requestId !== aviRequestId) return;
+    const objectUrl = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt;charset=utf-8' }));
+    if (attachSubtitleTrack(videoEl, objectUrl, label, requestId, objectUrl)) {
+      setSubtitleStatus('Subtítulos cargados.');
+    }
+  } catch (error) {
+    if (requestId !== aviRequestId) return;
+    console.error('No se pudieron convertir los subtítulos:', error);
+    setSubtitleStatus(`No se pudieron cargar los subtítulos ${format.toUpperCase()}. Probá con VTT o SRT.`, true);
+  }
 }
 
 /* ================================================================
@@ -1088,6 +1214,8 @@ function setExternalSubtitle(videoEl, subtitleUrl) {
    ================================================================ */
 function loadVideo({ videoUrl, title, description, subtitleUrl }) {
   const requestId = ++aviRequestId;
+  clearSubtitleTracks(refs.nativePlayer);
+  setSubtitleStatus('');
   if (aviObjectUrl) {
     URL.revokeObjectURL(aviObjectUrl);
     aviObjectUrl = '';
@@ -1145,9 +1273,9 @@ function loadVideo({ videoUrl, title, description, subtitleUrl }) {
     }
 
     case SOURCE_TYPE.HLS: {
-      setExternalSubtitle(refs.nativePlayer, subtitleUrl);
       showNativePlayer();
       loadHLS(videoUrl, refs.nativePlayer);
+      void setExternalSubtitle(refs.nativePlayer, subtitleUrl, requestId);
       setInfoBox(pageTitle, pageDescription, [
         { icon: 'bi-broadcast',      text: 'HLS / m3u8' },
         { icon: 'bi-lightning-fill', text: 'Stream' },
@@ -1155,15 +1283,16 @@ function loadVideo({ videoUrl, title, description, subtitleUrl }) {
       break;
     }
 
-    case SOURCE_TYPE.NATIVE_WEBM: {
-      setExternalSubtitle(refs.nativePlayer, subtitleUrl);
+    case SOURCE_TYPE.NATIVE_WEBM:
+    case SOURCE_TYPE.NATIVE_MKV: {
       refs.nativePlayer.src = videoUrl;
       refs.nativePlayer.load();
       showNativePlayer();
       refs.nativePlayer.onerror = () =>
-        showError('No se pudo cargar el video WebM. Verificá que la URL sea válida y que el servidor permita CORS.');
+        showError(`No se pudo cargar el video ${source.type === SOURCE_TYPE.NATIVE_MKV ? 'MKV' : 'WebM'}. Verificá que el códec sea compatible con este navegador y que el servidor permita CORS.`);
+      void setExternalSubtitle(refs.nativePlayer, subtitleUrl, requestId);
       setInfoBox(pageTitle, pageDescription, [
-        { icon: 'bi-file-play-fill',   text: 'WebM' },
+        { icon: 'bi-file-play-fill',   text: source.type === SOURCE_TYPE.NATIVE_MKV ? 'MKV' : 'WebM' },
         { icon: 'bi-cloud-arrow-down', text: 'Remoto' },
       ]);
       break;
@@ -1179,12 +1308,12 @@ function loadVideo({ videoUrl, title, description, subtitleUrl }) {
     }
 
     default: { // MP4 y otros nativos
-      setExternalSubtitle(refs.nativePlayer, subtitleUrl);
       refs.nativePlayer.src = videoUrl;
       refs.nativePlayer.load();
       showNativePlayer();
       refs.nativePlayer.onerror = () =>
         showError('No se pudo cargar el video. Verificá que la URL sea directa, accesible y que el servidor permita CORS.');
+      void setExternalSubtitle(refs.nativePlayer, subtitleUrl, requestId);
       setInfoBox(pageTitle, pageDescription, [
         { icon: 'bi-file-play-fill',   text: 'MP4' },
         { icon: 'bi-cloud-arrow-down', text: 'Remoto' },

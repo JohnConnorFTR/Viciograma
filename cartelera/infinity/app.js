@@ -39,9 +39,10 @@ async function api(path, options = {}) {
 
   let response;
   try {
+    const isFormData = options.body instanceof FormData;
     response = await fetch(requestUrl, {
       credentials: 'same-origin',
-      headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: { Accept: 'application/json', ...(options.body && !isFormData ? { 'Content-Type': 'application/json' } : {}) },
       ...options
     });
   } catch {
@@ -244,6 +245,43 @@ function openProfilePage() {
   window.location.assign(target.toString());
 }
 
+function subtitleApiUrl(id, format) {
+  const appDirectory = new URL('./', window.location.href);
+  const url = new URL(`api/subtitles.php?file=${encodeURIComponent(String(id))}&format=${encodeURIComponent(format)}`, appDirectory);
+  return url.href;
+}
+
+function externalLinkWithSubtitle(mediaUrl, subtitleUrl) {
+  if (!subtitleUrl) return mediaUrl;
+  try {
+    const url = new URL(mediaUrl);
+    const fragment = new URLSearchParams(url.hash.replace(/^#/, ''));
+    fragment.set('viciograma_subtitle', subtitleUrl);
+    url.hash = fragment.toString();
+    return url.href;
+  } catch {
+    return mediaUrl;
+  }
+}
+
+function shareLinkForPost(post) {
+  const episode = post.type === 'series'
+    ? post.episodes?.find((item) => item.link_url === post.link_url) || post.episodes?.[0]
+    : null;
+  return externalLinkWithSubtitle(
+    episode?.link_url || post.link_url,
+    episode ? episode.subtitle_url : post.subtitle_url
+  );
+}
+
+async function uploadSubtitle(postId, targetKey, file) {
+  const body = new FormData();
+  body.set('post_id', String(postId));
+  body.set('target_key', targetKey);
+  body.set('subtitle', file);
+  return api('subtitles.php', { method: 'POST', body });
+}
+
 function episodeRowMarkup(episode = {}) {
   return `
     <div class="episode-entry">
@@ -258,6 +296,11 @@ function episodeRowMarkup(episode = {}) {
       </label>
       <label class="episode-url-field">Enlace del episodio
         <input data-episode-field="link_url" type="url" value="${escapeHtml(episode.link_url || '')}" placeholder="https://…" required />
+      </label>
+      <label class="episode-subtitle-field">Subtítulo del episodio (opcional)
+        <input data-episode-field="subtitle" type="file" accept=".vtt,.srt,.ass,.ssa,.sub,.smi,.sami,.sbv,.ttml,.dfxp,.xml,.stl,.scc,.mpl,.mpl2,.txt" />
+        <small>Formatos de texto como VTT, SRT, ASS/SSA, SUB, SBV y TTML (máx. 5 MB).</small>
+        ${episode.subtitle_name ? `<small>Actual: ${escapeHtml(episode.subtitle_name)}. Subí otro archivo para reemplazarlo.</small>` : ''}
       </label>
       <button class="episode-remove button button-quiet" type="button" aria-label="Quitar episodio"><i class="bi bi-trash"></i></button>
     </div>
@@ -372,6 +415,11 @@ function renderModal() {
               </div>
               <label>Género<input name="genre" maxlength="40" value="${escapeHtml(values.genre || '')}" placeholder="Drama, comedia, ciencia ficción…" /></label>
               <label id="single-link-field" ${isSeries ? 'hidden' : ''}>Enlace externo<input name="link_url" id="single-link-url" type="url" ${isSeries ? '' : 'required'} value="${escapeHtml(values.link_url || '')}" placeholder="https://…" /></label>
+              <label id="post-subtitle-field" ${isSeries ? 'hidden' : ''}>Subtítulo (opcional)
+                <input name="subtitle" id="post-subtitle-file" type="file" accept=".vtt,.srt,.ass,.ssa,.sub,.smi,.sami,.sbv,.ttml,.dfxp,.xml,.stl,.scc,.mpl,.mpl2,.txt" />
+                <small>Formatos de texto como VTT, SRT, ASS/SSA, SUB, SBV y TTML (máx. 5 MB).</small>
+                ${values.subtitle_name ? `<small>Actual: ${escapeHtml(values.subtitle_name)}. Subí otro archivo para reemplazarlo.</small>` : '<small>Se guarda en la cartelera y se pasa al reproductor junto con el enlace.</small>'}
+              </label>
               <section id="series-episodes" class="series-episodes" ${isSeries ? '' : 'hidden'}>
                 <div class="episodes-heading">
                   <div><strong>Episodios</strong><small>Agregá un enlace por episodio.</small></div>
@@ -482,6 +530,8 @@ function renderModal() {
     const typeSelect = root.querySelector('#publish-type');
     const singleLinkField = root.querySelector('#single-link-field');
     const singleLinkInput = root.querySelector('#single-link-url');
+    const postSubtitleField = root.querySelector('#post-subtitle-field');
+    const postSubtitleInput = root.querySelector('#post-subtitle-file');
     const episodesSection = root.querySelector('#series-episodes');
     const episodeList = root.querySelector('#episode-list');
     const syncEpisodeFields = () => {
@@ -489,9 +539,11 @@ function renderModal() {
       singleLinkField.hidden = showEpisodes;
       singleLinkInput.required = !showEpisodes;
       singleLinkInput.disabled = showEpisodes;
+      postSubtitleField.hidden = showEpisodes;
+      postSubtitleInput.disabled = showEpisodes;
       episodesSection.hidden = !showEpisodes;
       episodeList.querySelectorAll('[data-episode-field]').forEach((input) => {
-        input.required = showEpisodes && input.dataset.episodeField !== 'title';
+        input.required = showEpisodes && ['season_number', 'episode_number', 'link_url'].includes(input.dataset.episodeField);
         input.disabled = !showEpisodes;
       });
     };
@@ -526,7 +578,7 @@ function renderModal() {
     publishForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = new FormData(event.currentTarget);
-      const payload = Object.fromEntries(form.entries());
+      const payload = Object.fromEntries([...form.entries()].filter(([, value]) => !(value instanceof File)));
       if (typeSelect.value === 'series') {
         payload.episodes = [...episodeList.querySelectorAll('.episode-entry')].map((row) => ({
           season_number: Number(row.querySelector('[data-episode-field="season_number"]').value),
@@ -539,15 +591,37 @@ function renderModal() {
         payload.episodes = [];
       }
       const submitButton = event.currentTarget.querySelector('[type="submit"]');
+      const isEditing = !!state.modal?.payload?.editing;
+      let savedPostId = 0;
       submitButton.disabled = true;
       try {
-        const isEditing = !!state.modal?.payload?.editing;
         const endpoint = isEditing ? 'posts.php' : 'posts.php';
         const body = isEditing
           ? JSON.stringify({ ...payload, action: 'update_post', post_id: state.modal.payload.id })
           : JSON.stringify(payload);
 
-        await api(endpoint, { method: 'POST', body });
+        const saveResult = await api(endpoint, { method: 'POST', body });
+        savedPostId = Number(saveResult.post?.id || state.modal.payload?.id);
+        if (!savedPostId) throw new Error('La publicación se guardó, pero no se pudo obtener su identificador para asociar los subtítulos.');
+        const subtitleFiles = [];
+        if (typeSelect.value === 'series') {
+          episodeList.querySelectorAll('.episode-entry').forEach((row) => {
+            const file = row.querySelector('[data-episode-field="subtitle"]').files[0];
+            if (!file) return;
+            const season = Number(row.querySelector('[data-episode-field="season_number"]').value);
+            const episode = Number(row.querySelector('[data-episode-field="episode_number"]').value);
+            subtitleFiles.push({
+              targetKey: `episode:${season}:${episode}`,
+              file
+            });
+          });
+        } else {
+          const file = postSubtitleInput.files[0];
+          if (file) subtitleFiles.push({ targetKey: 'post', file });
+        }
+        for (const subtitle of subtitleFiles) {
+          await uploadSubtitle(savedPostId, subtitle.targetKey, subtitle.file);
+        }
         closeModal();
         if (document.body.dataset.page === 'detail') {
           await initDetailPage();
@@ -559,7 +633,13 @@ function renderModal() {
         renderNotice(isEditing ? '¡Publicación actualizada!' : '¡Publicado! Tu enlace ya está en la cartelera.');
         if (document.body.dataset.page !== 'detail') await loadPosts();
       } catch (error) {
-        renderFormError(error.message);
+        if (!isEditing && savedPostId && state.modal) {
+          state.modal.payload = { ...payload, id: savedPostId, editing: true };
+          submitButton.textContent = 'Reintentar guardado';
+          renderFormError(`La publicación se guardó, pero no se pudo guardar el subtítulo. ${error.message} Volvé a guardar para reintentar sin duplicar la publicación.`);
+        } else {
+          renderFormError(error.message);
+        }
       } finally {
         if (submitButton.isConnected) submitButton.disabled = false;
       }
@@ -590,7 +670,7 @@ function renderModal() {
 
   if (type === 'detail' && payload) {
     root.querySelector('#share-post-btn')?.addEventListener('click', async () => {
-      const shareUrl = payload.link_url;
+      const shareUrl = shareLinkForPost(payload);
       const shareText = `${payload.title} — ${payload.username}`;
       if (navigator.share) {
         try {
@@ -741,6 +821,23 @@ async function initDetailPage() {
       ? await api(`posts.php?episodes=${encodeURIComponent(String(id))}`)
       : { episodes: [] };
     post.episodes = episodesResult.episodes || [];
+    const subtitlesResult = await api(`subtitles.php?post=${encodeURIComponent(String(id))}`);
+    const subtitleByTarget = new Map((subtitlesResult.subtitles || []).map((subtitle) => [
+      subtitle.target_key,
+      subtitle
+    ]));
+    const postSubtitle = subtitleByTarget.get('post');
+    post.subtitle_url = postSubtitle ? subtitleApiUrl(postSubtitle.id, postSubtitle.format) : '';
+    post.subtitle_name = postSubtitle?.original_name || '';
+    post.episodes = post.episodes.map((episode) => {
+      const key = `episode:${Number(episode.season_number)}:${Number(episode.episode_number)}`;
+      const subtitle = subtitleByTarget.get(key);
+      return {
+        ...episode,
+        subtitle_url: subtitle ? subtitleApiUrl(subtitle.id, subtitle.format) : '',
+        subtitle_name: subtitle?.original_name || ''
+      };
+    });
     const reviewsResult = await api(`posts.php?reviews=${encodeURIComponent(String(id))}`);
     const reviews = reviewsResult.reviews || [];
     const reviewMarkup = reviews.length
@@ -774,7 +871,7 @@ async function initDetailPage() {
                 <h3>Temporada ${seasonNumber} <span>${episodes.length} ${episodes.length === 1 ? 'episodio' : 'episodios'}</span></h3>
                 <div class="episode-browser-list">
                   ${episodes.map((episode) => `
-                    <a class="episode-link" href="${escapeHtml(episode.link_url)}" target="_blank" rel="noopener noreferrer">
+                    <a class="episode-link" href="${escapeHtml(externalLinkWithSubtitle(episode.link_url, episode.subtitle_url))}" target="_blank" rel="noopener noreferrer">
                       <span class="episode-number">E${Number(episode.episode_number)}</span>
                       <span class="episode-name">${escapeHtml(episode.title || `Episodio ${Number(episode.episode_number)}`)}</span>
                       <i class="bi bi-box-arrow-up-right"></i>
@@ -807,7 +904,7 @@ async function initDetailPage() {
                 <span><i class="bi bi-chat-left-text"></i> ${post.review_count ?? 0} reseñas</span>
               </div>
               <div class="detail-actions">
-                ${post.type === 'series' ? '' : `<a class="button button-primary detail-link" href="${escapeHtml(post.link_url)}" target="_blank" rel="noopener noreferrer">Visitar enlace externo <i class="bi bi-box-arrow-up-right"></i></a>`}
+                ${post.type === 'series' ? '' : `<a class="button button-primary detail-link" href="${escapeHtml(externalLinkWithSubtitle(post.link_url, post.subtitle_url))}" target="_blank" rel="noopener noreferrer">Visitar enlace externo <i class="bi bi-box-arrow-up-right"></i></a>`}
                 <button class="button button-quiet" type="button" id="share-post-btn"><i class="bi bi-share"></i> Compartir</button>
                 ${user ? `<button class="button button-quiet" type="button" id="toggle-like-btn"><i class="bi bi-heart${post.liked_by_me ? '-fill' : ''}"></i> ${post.liked_by_me ? 'Te gusta' : 'Me gusta'}</button>` : ''}
                 ${user && Number(user.id) === Number(post.user_id) ? '<button class="button button-quiet" type="button" id="edit-post-page-btn"><i class="bi bi-pencil"></i> Editar publicación</button>' : ''}
@@ -844,9 +941,10 @@ async function initDetailPage() {
     const shareButton = document.getElementById('share-post-btn');
     shareButton?.addEventListener('click', async () => {
       const shareText = `${post.title} — ${post.username}`;
+      const shareUrl = shareLinkForPost(post);
       if (navigator.share) {
         try {
-          await navigator.share({ title: shareText, text: shareText, url: post.link_url });
+          await navigator.share({ title: shareText, text: shareText, url: shareUrl });
           renderNotice('Enlace compartido.');
           return;
         } catch {
@@ -854,10 +952,10 @@ async function initDetailPage() {
         }
       }
       try {
-        await navigator.clipboard.writeText(`${shareText} ${post.link_url}`);
+        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
         renderNotice('Link copiado al portapapeles.');
       } catch {
-        window.open(post.link_url, '_blank', 'noopener,noreferrer');
+        window.open(shareUrl, '_blank', 'noopener,noreferrer');
       }
     });
 
