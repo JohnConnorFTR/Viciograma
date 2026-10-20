@@ -22,13 +22,13 @@ const VG_CONFIG = {
 const SOURCE_TYPE = Object.freeze({
   NATIVE_MP4:  'native_mp4',
   NATIVE_WEBM: 'native_webm',
-  AVI:         'avi',
+  TRANSCODED:  'transcoded',
   HLS:         'hls',
   YOUTUBE:     'youtube',
   UNKNOWN:     'unknown',
 });
 
-const MEDIA_FILE_EXTENSION = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|avi|m3u8)$/i;
+const MEDIA_FILE_EXTENSION = /\.(mp3|m4a|aac|wav|flac|ogg|opus|mp4|m4v|webm|mov|ogv|3gp|avi|mkv|m3u8)$/i;
 const FFMPEG_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
 const FFMPEG_CORE_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js';
 
@@ -121,8 +121,8 @@ function detectSourceType(url) {
     if (extension === 'm3u8' || path.endsWith('.m3u8')) {
       return { type: SOURCE_TYPE.HLS, url };
     }
-    if (extension === 'avi' || path.endsWith('.avi')) {
-      return { type: SOURCE_TYPE.AVI, url };
+    if (/^(avi|mkv)$/.test(extension || '') || /\.(avi|mkv)$/.test(path)) {
+      return { type: SOURCE_TYPE.TRANSCODED, extension, url };
     }
     if (extension === 'webm' || path.endsWith('.webm')) {
       return { type: SOURCE_TYPE.NATIVE_WEBM, url };
@@ -330,6 +330,7 @@ const refs = {
   aviTranscodeStatus: $('avi-transcode-status'),
   aviTranscodeMessage: $('avi-transcode-message'),
   aviTranscodeProgress: $('avi-transcode-progress'),
+  originNote: $('origin-note'),
   imaAdContainer:   $('ima-ad-container'),
   embedPlayer:      $('embed-player'),
   videoTitle:       $('video-title'),
@@ -840,7 +841,7 @@ async function getFfmpeg() {
 }
 
 async function fetchAviFile(url, requestId) {
-  const response = await fetch(url);
+  const response = await fetch(url, { mode: 'cors' });
   if (!response.ok || !response.body) {
     throw new Error(`El servidor del video respondió HTTP ${response.status}.`);
   }
@@ -888,31 +889,32 @@ async function fetchAviFile(url, requestId) {
   return completeData;
 }
 
-async function loadAvi(url, subtitleUrl, requestId) {
+async function loadTranscodedVideo(url, extension, subtitleUrl, requestId) {
   showPlaceholder();
   if (refs.placeholderDefault) refs.placeholderDefault.hidden = true;
-  updateAviProgress('Conectando con el servidor del AVI…');
+  const format = extension.toUpperCase();
+  updateAviProgress(`Conectando con el servidor del archivo ${format}…`);
 
   try {
     let input = await fetchAviFile(url, requestId);
     if (!input || requestId !== aviRequestId) return;
 
-    updateAviProgress('Preparando el reproductor AVI…', 35);
+    updateAviProgress(`Preparando el reproductor ${format}…`, 35);
     const ffmpeg = await getFfmpeg();
     if (requestId !== aviRequestId) return;
 
-    updateAviProgress('Convirtiendo AVI para reproducirlo en el navegador…', 40);
-    for (const filename of ['viciograma-input.avi', 'viciograma-output.mp4']) {
+    updateAviProgress(`Convirtiendo ${format} para reproducirlo en el navegador…`, 40);
+    for (const filename of [`viciograma-input.${extension}`, 'viciograma-output.mp4']) {
       try {
         ffmpeg.FS('unlink', filename);
       } catch {
         // The virtual file may not exist on the first playback.
       }
     }
-    ffmpeg.FS('writeFile', 'viciograma-input.avi', input);
+    ffmpeg.FS('writeFile', `viciograma-input.${extension}`, input);
     input = null;
     await ffmpeg.run(
-      '-i', 'viciograma-input.avi',
+      '-i', `viciograma-input.${extension}`,
       '-map', '0:v:0',
       '-map', '0:a?',
       '-c:v', 'libx264',
@@ -929,17 +931,17 @@ async function loadAvi(url, subtitleUrl, requestId) {
     const output = ffmpeg.FS('readFile', 'viciograma-output.mp4');
     if (aviObjectUrl) URL.revokeObjectURL(aviObjectUrl);
     aviObjectUrl = URL.createObjectURL(new Blob([output], { type: 'video/mp4' }));
-    ffmpeg.FS('unlink', 'viciograma-input.avi');
+    ffmpeg.FS('unlink', `viciograma-input.${extension}`);
     ffmpeg.FS('unlink', 'viciograma-output.mp4');
     setExternalSubtitle(refs.nativePlayer, subtitleUrl);
-    refs.nativePlayer.onerror = () => showError('No se pudo reproducir el AVI convertido. Puede contener un códec incompatible o estar dañado.');
+    refs.nativePlayer.onerror = () => showError(`No se pudo reproducir el ${format} convertido. Puede contener un códec incompatible o estar dañado.`);
     refs.nativePlayer.src = aviObjectUrl;
     refs.nativePlayer.load();
     showNativePlayer();
   } catch (error) {
     if (requestId !== aviRequestId) return;
-    console.error('No se pudo descargar o convertir el AVI:', error);
-    showError('No se pudo convertir el AVI. El servidor debe permitir CORS y el navegador necesita memoria suficiente. Probá con otro enlace o con un archivo más pequeño.');
+    console.error(`No se pudo descargar o convertir el ${format}:`, error);
+    showError(`No se pudo cargar o convertir el ${format}. Usá un enlace directo al archivo (no la página de MediaFire); el servidor debe permitir CORS y los archivos grandes requieren mucha memoria.`);
   }
 }
 
@@ -963,6 +965,12 @@ async function showOriginLanding(rawUrl, title, description) {
   refs.originExtensionGate.hidden = false;
   refs.originOpenLink.hidden = true;
   refs.originOpenLink.href = sourceUrl.href;
+  if (refs.originNote) {
+    const isMediaFire = sourceUrl.hostname.toLowerCase().replace(/^www\./, '') === 'mediafire.com';
+    refs.originNote.textContent = isMediaFire
+      ? 'Este enlace abre una página de MediaFire, no el archivo AVI/MKV. Viciograma solo puede reproducir enlaces directos al archivo y no extrae enlaces de páginas de descarga.'
+      : 'Este enlace lleva a una página, no a un archivo multimedia directo. Viciograma no extrae archivos desde páginas externas.';
+  }
   refs.originTitleStatus.textContent = title
     ? ''
     : 'Intentando leer el título de la página de origen…';
@@ -1164,10 +1172,10 @@ function loadVideo({ videoUrl, title, description, subtitleUrl }) {
       break;
     }
 
-    case SOURCE_TYPE.AVI: {
-      void loadAvi(videoUrl, subtitleUrl, requestId);
+    case SOURCE_TYPE.TRANSCODED: {
+      void loadTranscodedVideo(videoUrl, source.extension || 'avi', subtitleUrl, requestId);
       setInfoBox(pageTitle, pageDescription, [
-        { icon: 'bi-file-play-fill', text: 'AVI' },
+        { icon: 'bi-file-play-fill', text: source.extension.toUpperCase() },
         { icon: 'bi-arrow-repeat', text: 'Conversión local' },
       ]);
       break;
