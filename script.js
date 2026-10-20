@@ -904,12 +904,9 @@ async function loadTranscodedVideo(url, extension, subtitleUrl, requestId) {
     if (requestId !== aviRequestId) return;
 
     updateAviProgress(`Convirtiendo ${format} para reproducirlo en el navegador…`, 40);
+    const existingFiles = ffmpeg.FS('readdir', '/');
     for (const filename of [`viciograma-input.${extension}`, 'viciograma-output.mp4']) {
-      try {
-        ffmpeg.FS('unlink', filename);
-      } catch {
-        // The virtual file may not exist on the first playback.
-      }
+      if (existingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
     }
     ffmpeg.FS('writeFile', `viciograma-input.${extension}`, input);
     input = null;
