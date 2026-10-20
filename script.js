@@ -335,6 +335,8 @@ const refs = {
   originTitleStatus: $('origin-title-status'),
   originOpenLink:   $('origin-open-link'),
   nativePlayer:     $('native-player'),
+  subtitleControls: $('subtitle-controls'),
+  subtitleTrackSelect: $('subtitle-track-select'),
   subtitleStatus: $('subtitle-status'),
   aviTranscodeStatus: $('avi-transcode-status'),
   aviTranscodeMessage: $('avi-transcode-message'),
@@ -1109,6 +1111,11 @@ function clearSubtitleTracks(videoEl) {
     }
     track.remove();
   });
+  if (refs.subtitleTrackSelect) {
+    refs.subtitleTrackSelect.innerHTML = '<option value="off">Desactivados</option>';
+    refs.subtitleTrackSelect.value = 'off';
+  }
+  if (refs.subtitleControls) refs.subtitleControls.hidden = true;
 }
 
 function subtitleFormatFromUrl(rawUrl) {
@@ -1122,6 +1129,13 @@ function subtitleFormatFromUrl(rawUrl) {
   }
 }
 
+function selectSubtitleTrack(trackIndex) {
+  const tracks = [...refs.nativePlayer.querySelectorAll('track[data-viciograma-subtitle]')];
+  tracks.forEach((track, index) => {
+    track.track.mode = index === trackIndex ? 'showing' : 'disabled';
+  });
+}
+
 function attachSubtitleTrack(videoEl, source, label, requestId, objectUrl = '') {
   if (requestId !== aviRequestId) {
     if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -1132,18 +1146,53 @@ function attachSubtitleTrack(videoEl, source, label, requestId, objectUrl = '') 
   track.label = label;
   track.srclang = 'es';
   track.src = source;
-  track.default = true;
+  track.track.mode = 'hidden';
   track.dataset.viciogramaSubtitle = 'true';
   if (objectUrl) {
     track.dataset.objectUrl = objectUrl;
     subtitleObjectUrls.add(objectUrl);
   }
   track.addEventListener('error', () => {
-    setSubtitleStatus('No se pudo cargar la pista. Verificá que la URL esté disponible y permita CORS.', true);
+    if (requestId !== aviRequestId) return;
+    setSubtitleStatus('El archivo se recibió, pero el navegador no pudo interpretar la pista. Verificá que sea un subtítulo válido.', true);
+  });
+  track.addEventListener('load', () => {
+    if (requestId !== aviRequestId) return;
+    if (!track.track.cues?.length) {
+      setSubtitleStatus('El archivo no contiene subtítulos que el reproductor pueda mostrar.', true);
+      return;
+    }
+    const select = refs.subtitleTrackSelect;
+    if (select) {
+      const index = videoEl.querySelectorAll('track[data-viciograma-subtitle]').length;
+      const option = document.createElement('option');
+      option.value = String(index - 1);
+      option.textContent = label;
+      select.append(option);
+      select.value = option.value;
+    }
+    if (refs.subtitleControls) refs.subtitleControls.hidden = false;
+    track.track.mode = 'showing';
+    setSubtitleStatus('Subtítulos cargados. Podés activarlos o desactivarlos con el selector.');
   });
   videoEl.append(track);
-  track.track.mode = 'showing';
   return true;
+}
+
+function subtitleBytesToText(bytes) {
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/, '');
+}
+
+function srtToWebVtt(text) {
+  const normalized = text.replace(/\r\n?/g, '\n').trim();
+  if (!normalized.includes('-->')) {
+    throw new Error('El archivo SRT no contiene bloques de subtítulos válidos.');
+  }
+  const cues = normalized.replace(
+    /(\d{2,}:\d{2}:\d{2}),(\d{1,3})(?=\s*-->)/g,
+    (_, timestamp, milliseconds) => `${timestamp}.${milliseconds.padEnd(3, '0')}`
+  );
+  return `WEBVTT\n\n${cues}\n`;
 }
 
 async function setExternalSubtitle(videoEl, subtitleUrl, requestId = aviRequestId) {
@@ -1155,13 +1204,7 @@ async function setExternalSubtitle(videoEl, subtitleUrl, requestId = aviRequestI
 
   const format = subtitleFormatFromUrl(subtitleUrl);
   const label = 'Subtítulos';
-  if (format === 'vtt') {
-    attachSubtitleTrack(videoEl, subtitleUrl, label, requestId);
-    setSubtitleStatus('Subtítulos cargados.');
-    return;
-  }
-
-  setSubtitleStatus(`Convirtiendo subtítulos ${format.toUpperCase()} para el reproductor…`);
+  setSubtitleStatus(`Cargando subtítulos ${format.toUpperCase()}…`);
   try {
     const response = await fetch(subtitleUrl, { mode: 'cors' });
     if (!response.ok) throw new Error(`El servidor respondió HTTP ${response.status}.`);
@@ -1170,42 +1213,52 @@ async function setExternalSubtitle(videoEl, subtitleUrl, requestId = aviRequestI
       throw new Error('El archivo de subtítulos está vacío o supera los 5 MB.');
     }
 
-    const vtt = await queueFfmpegTask(async () => {
-      const ffmpeg = await getFfmpeg();
-      if (requestId !== aviRequestId) return null;
-      const inputName = `viciograma-subtitle-${++subtitleTaskId}.${format}`;
-      const outputName = `viciograma-subtitle-${subtitleTaskId}.vtt`;
-      const existingFiles = ffmpeg.FS('readdir', '/');
-      for (const filename of [inputName, outputName]) {
-        if (existingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
-      }
-      ffmpeg.FS('writeFile', inputName, subtitleBytes);
-      ffmpegProgressHandler = (ratio) => setSubtitleStatus(
-        `Convirtiendo subtítulos ${format.toUpperCase()}… ${Math.round(ratio * 100)}%`
-      );
-      try {
-        await ffmpeg.run('-i', inputName, '-map', '0:s:0', '-c:s', 'webvtt', '-f', 'webvtt', outputName);
+    let vtt;
+    if (format === 'vtt') {
+      const text = subtitleBytesToText(subtitleBytes);
+      if (!/^WEBVTT(?:\s|$)/.test(text)) throw new Error('El archivo no tiene una cabecera WebVTT válida.');
+      vtt = text;
+    } else if (format === 'srt') {
+      vtt = srtToWebVtt(subtitleBytesToText(subtitleBytes));
+    } else {
+      setSubtitleStatus(`Convirtiendo subtítulos ${format.toUpperCase()} para el reproductor…`);
+      vtt = await queueFfmpegTask(async () => {
+        const ffmpeg = await getFfmpeg();
         if (requestId !== aviRequestId) return null;
-        const converted = ffmpeg.FS('readFile', outputName);
-        if (!converted.length) throw new Error('La conversión no generó una pista WebVTT.');
-        return converted;
-      } finally {
-        ffmpegProgressHandler = null;
-        const remainingFiles = ffmpeg.FS('readdir', '/');
+        const inputName = `viciograma-subtitle-${++subtitleTaskId}.${format}`;
+        const outputName = `viciograma-subtitle-${subtitleTaskId}.vtt`;
+        const existingFiles = ffmpeg.FS('readdir', '/');
         for (const filename of [inputName, outputName]) {
-          if (remainingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
+          if (existingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
         }
-      }
-    });
+        ffmpeg.FS('writeFile', inputName, subtitleBytes);
+        ffmpegProgressHandler = (ratio) => setSubtitleStatus(
+          `Convirtiendo subtítulos ${format.toUpperCase()}… ${Math.round(ratio * 100)}%`
+        );
+        try {
+          await ffmpeg.run('-i', inputName, '-map', '0:s:0', '-c:s', 'webvtt', '-f', 'webvtt', outputName);
+          if (requestId !== aviRequestId) return null;
+          const converted = ffmpeg.FS('readFile', outputName);
+          if (!converted.length) throw new Error('La conversión no generó una pista WebVTT.');
+          return subtitleBytesToText(converted);
+        } finally {
+          ffmpegProgressHandler = null;
+          const remainingFiles = ffmpeg.FS('readdir', '/');
+          for (const filename of [inputName, outputName]) {
+            if (remainingFiles.includes(filename)) ffmpeg.FS('unlink', filename);
+          }
+        }
+      });
+    }
     if (!vtt || requestId !== aviRequestId) return;
     const objectUrl = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt;charset=utf-8' }));
     if (attachSubtitleTrack(videoEl, objectUrl, label, requestId, objectUrl)) {
-      setSubtitleStatus('Subtítulos cargados.');
+      setSubtitleStatus('El archivo está listo; esperando que el navegador cargue la pista…');
     }
   } catch (error) {
     if (requestId !== aviRequestId) return;
     console.error('No se pudieron convertir los subtítulos:', error);
-    setSubtitleStatus(`No se pudieron cargar los subtítulos ${format.toUpperCase()}. Probá con VTT o SRT.`, true);
+    setSubtitleStatus(`No se pudieron cargar los subtítulos ${format.toUpperCase()}: ${error.message}`, true);
   }
 }
 

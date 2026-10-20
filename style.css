@@ -327,6 +327,29 @@ body {
   color: #ff8f8f;
 }
 
+.vg-subtitle-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin: 0.5rem 0;
+  color: var(--vg-text);
+  font-size: 0.875rem;
+}
+
+.vg-subtitle-controls[hidden] {
+  display: none;
+}
+
+.vg-subtitle-controls select {
+  max-width: min(100%, 16rem);
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--vg-border);
+  border-radius: 0.4rem;
+  background: #17171b;
+  color: var(--vg-text);
+}
+
 @keyframes vg-avi-spin {
   to { transform: rotate(360deg); }
 }
